@@ -1,11 +1,7 @@
 <script>
-    import {afterUpdate, getContext, onMount} from "svelte";
+    import {getContext, onMount} from "svelte";
 
     const authenticated = getContext('authenticated')
-
-    afterUpdate(() => {
-        feather.replace();
-    })
 
     onMount(async () => {
     })
@@ -14,8 +10,8 @@
 {#if $authenticated}
     <h1>Superpowers (battries included)</h1>
     <ul>
-        <li>Role-based access control</li>
-        <li>Multi-tenant</li>
+        <li>...</li>
+        <li>(Long list)</li>
     </ul>
 {/if}
 

@@ -149,19 +149,14 @@
 
 <svelte:head>
     <title>Fiksie</title>
-    <script src="/feather.min.js"></script>
-    <link rel="stylesheet" href="/spectre.css">
-    <link rel="stylesheet" href="/spectre-icons.min.css">
-    <link rel="stylesheet" href="/pico.css">
-    <link rel="stylesheet" href="/custom.css">
-    <link rel="stylesheet" href="/simple-notify.css">
+    <link rel="stylesheet" href="/classless.css">
 </svelte:head>
 
 {#if browser && authenticated}
     <nav class="mx-2">
         <ul>
             {#if adm}
-                <li on:click={() => sidebar = !sidebar}><i class="ic-md" data-feather="menu"></i></li>
+                <li on:click={() => sidebar = !sidebar}>Menu</li>
             {/if}
         </ul>
         <ul>
@@ -187,17 +182,17 @@
                         {/each}
                     </select>
                 {/await}
-                <a href="/"><i class="ic-sm" data-feather="home"></i>Home</a><hr>
+                <a href="/">Home</a><hr>
                 <details>
-                    <summary><i class="ic-sm" data-feather="tool"></i>Admin</summary>
+                    <summary>Admin</summary>
                     <ul>
-                        <li><a href="/organizations"><i class="ic-sm" data-feather="globe"></i>Organizations</a></li>
-                        <li><a href="/users"><i class="ic-sm" data-feather="users"></i>Users</a></li>
-                        <li><a href="/roles"><i class="ic-sm" data-feather="unlock"></i>Roles</a></li>
-                        <li><a href="/privileges"><i class="ic-sm" data-feather="key"></i>Permissions</a></li>
+                        <li><a href="/organizations">Organizations</a></li>
+                        <li><a href="/users">Users</a></li>
+                        <li><a href="/roles">Roles</a></li>
+                        <li><a href="/privileges">Permissions</a></li>
                     </ul>
                 </details>
-                <a href="#"><i class="ic-sm" data-feather="link"></i>Link</a><br>
+                <a href="#">Link</a><br>
             </div>
             <div class={right} style="overflow: auto"><slot></slot></div>
         {:else}
@@ -211,7 +206,6 @@
 <dialog bind:this={warn}>
     <article class="col-6">
         <div class="columns">
-            <div class="col-4"><i class="ic-xl p-centered text-warning" data-feather="alert-triangle"></i></div>
             <div class="col-8">
                 <h3 class="mb-1">Session Timeout Warning</h3>
                 <div class="text-small mb-2">Your session will timout in {countdown} minutes.</div>
