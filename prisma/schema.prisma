@@ -10,66 +10,48 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model organizations {
-    id                  String @id @default(cuid())
-    name                String @unique
-    active              Boolean @default(true)
-    org                 String
-    creator             String
-    created             DateTime @default(now())
-    updated             DateTime @default(now()) @updatedAt
-}
-
-model temp {
-    userId              String?
-    username            String
-    password            String?
-    nonce               String @unique
-    created             DateTime @default(now())
-}
-
 model users {
-    id                  String @id @default(cuid())
-    username            String
+    id                  String @id @default(cuid(2))
+    username            String @unique
     password            String
     active              Boolean @default(true)
-    user                String? @unique
-    userRef             users? @relation("Owner", fields: [user], references: [id])
-    owner               users? @relation("Owner")
-    org                 String
-    creator             String
+    owner               String
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
-
-    roles               roles[]
-
-    @@unique([username, org])
 }
 
 model roles {
-    id                  String @id @default(cuid())
+    id                  String @id @default(cuid(2))
     name                String @unique
-    public              Boolean @default(false)
     default             Boolean @default(false)
-    admin               Boolean @default(false)
-    org                 String
-    creator             String
+    owner               String
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
 
-    users               users[]
+    grants              grants[]
     permissions         permissions[]
 }
 
+model grants {
+    id                  String @default(cuid(2))
+    user                String
+    roleRef             roles @relation(fields: [role], references: [name], onDelete: Cascade)
+    role                String
+    owner               String
+    created             DateTime @default(now())
+    updated             DateTime @default(now()) @updatedAt
+
+    @@unique([user, role])
+}
+
 model permissions {
-    id                  String @id @default(cuid())
+    id                  String @default(cuid(2))
     roleRef             roles @relation(fields: [role], references: [name], onDelete: Cascade)
     role                String
     resource            String
     action              String
     attributes          String @default("*")
-    org                 String
-    creator             String
+    owner               String
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
 

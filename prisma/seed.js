@@ -1,110 +1,66 @@
 import {PrismaClient} from "@prisma/client";
 import bcrypt from "bcrypt";
+import { createId } from '@paralleldrive/cuid2';
 
 const prisma = new PrismaClient()
+const exclude = ['litestream_lock', 'litestream_lock', 'litestream_seq']
 
 async function main() {
-    await prisma.$executeRaw`CREATE TRIGGER IF NOT EXISTS org_id AFTER INSERT ON organizations 
-        FOR EACH ROW
-        BEGIN
-        UPDATE organizations SET org = new.id WHERE id = new.id;
-        END;`;
-
-    await prisma.$executeRaw`CREATE TRIGGER IF NOT EXISTS user_id_insert AFTER INSERT ON users 
-        FOR EACH ROW
-        BEGIN
-        UPDATE users SET user = new.id WHERE id = new.id;
-        END;`;
-
-    await prisma.$executeRaw`CREATE TRIGGER IF NOT EXISTS user_id_update AFTER UPDATE ON users 
-        FOR EACH ROW
-        BEGIN
-        UPDATE users SET user = new.id WHERE id = new.id AND user != new.id;
-        END;`;
-
-    const orgs = await prisma.organizations.findMany({})
-    if (Array.from(orgs).length === 0) {
-        let org = await prisma.organizations.upsert({
-            where: { name: 'Acme' },
-            update: {},
-            create: {
-                name: 'Acme',
-                org: 'temp',
-                creator: 'temp',
-            },
-        })
-
-        let user = await prisma.users.upsert({
-            where: {
-                username_org: {
-                    username: 'admin',
-                    org: org.id,
-                },
-            },
-            update: {},
-            create: {
+    const users = await prisma.users.findMany({})
+    if (users.length === 0) {
+        let id = createId()
+        const sa = await prisma.users.create({
+            data: {
+                id: id,
                 username: 'admin',
                 password: await bcrypt.hash('admin', 10),
-                org: org.id,
-                creator: 'temp',
+                owner: id,
             },
         })
 
-        org = await prisma.organizations.update({
+        id = createId()
+        await prisma.users.create({
             data: {
-                creator: user.id,
-            },
-            where: {
-                id: org.id
-            }
-        })
-
-        const sa_role = await prisma.roles.upsert({
-            where: { name: 'System Admin' },
-            update: {},
-            create: {
-                name: 'System Admin',
-                public: false,
-                default: false,
-                admin: true,
-                org: org.id,
-                creator: user.id,
+                id: id,
+                username: 'demo',
+                password: await bcrypt.hash('demo', 10),
+                owner: id,
             },
         })
 
-        const user_role = await prisma.roles.upsert({
-            where: { name: 'User' },
-            update: {},
-            create: {
+        const admin = await prisma.roles.create({
+            data: {
+                name: 'Admin',
+                owner: sa.id,
+            },
+        })
+
+        const user = await prisma.roles.create({
+            data: {
                 name: 'User',
-                public: true,
-                default: true,
-                admin: false,
-                org: org.id,
-                creator: user.id,
+                owner: sa.id,
             },
         })
 
-        user = await prisma.users.update({
+        await prisma.grants.create({
             data: {
-                creator: user.id,
-                roles: {
-                    connect: {
-                        id: sa_role.id
-                    }
-                }
+                user: 'admin',
+                role: 'Admin',
+                owner: sa.id,
             },
-            where: {
-                username_org: {
-                    username: 'admin',
-                    org: org.id,
-                },
+        })
+
+        await prisma.grants.create({
+            data: {
+                user: 'demo',
+                role: 'User',
+                owner: sa.id,
             },
         })
 
         const resources = []
         const models = prisma['_runtimeDataModel']['models']
-        Object.keys(models).forEach(m => {if (!m.includes('_')) resources.push(m)})
+        Object.keys(models).forEach(m => {if (!exclude.includes(m)) resources.push(m)})
         const actions = ['create:any', 'read:any', 'update:any', 'delete:any']
 
         for (const resource of resources) {
@@ -112,11 +68,11 @@ async function main() {
                 try {
                     await prisma.permissions.create({
                         data: {
-                            role: 'System Admin',
+                            role: 'Admin',
                             resource: resource,
                             action: action,
-                            org: org.id,
-                            creator: user.id,
+                            attributes: resource === 'users' && action === 'read:any' ? '*, !password' : '*',
+                            owner: sa.id,
                         },
                     });
                 } catch (e) {
@@ -125,75 +81,43 @@ async function main() {
             }
         }
 
-        try {
-            await prisma.permissions.create({
-                data: {
-                    role: 'System Admin',
-                    resource: 'login',
-                    action: 'read:any',
-                    org: org.id,
-                    creator: user.id,
-                },
-            });
-            await prisma.permissions.create({
-                data: {
-                    role: 'System Admin',
-                    resource: 'resources',
-                    action: 'read:any',
-                    org: org.id,
-                    creator: user.id,
-                },
-            });
-            await prisma.permissions.create({
-                data: {
-                    role: 'System Admin',
-                    resource: 'privileges',
-                    action: 'read:any',
-                    org: org.id,
-                    creator: user.id,
-                },
-            });
-            await prisma.permissions.create({
-                data: {
-                    role: 'System Admin',
-                    resource: 'config',
-                    action: 'read:any',
-                    org: org.id,
-                    creator: user.id,
-                },
-            });
-            await prisma.permissions.create({
-                data: {
-                    role: 'User',
-                    resource: 'organizations',
-                    action: 'read:own',
-                    org: org.id,
-                    creator: user.id,
-                },
-            });
-            await prisma.permissions.create({
-                data: {
-                    role: 'User',
-                    resource: 'users',
-                    action: 'read:own',
-                    org: org.id,
-                    creator: user.id,
-                },
-            });
-            await prisma.permissions.create({
-                data: {
-                    role: 'User',
-                    resource: 'config',
-                    action: 'read:own',
-                    org: org.id,
-                    creator: user.id,
-                },
-            });
-        } catch (e) {
-            console.log(e)
-        }
+        await prisma.permissions.create({
+            data: {
+                role: 'Admin',
+                resource: 'privileges',
+                action: 'read:any',
+                owner: sa.id,
+            },
+        })
 
-        console.log({ org, user, role: sa_role })
+        await prisma.permissions.create({
+            data: {
+                role: 'User',
+                resource: 'users',
+                action: 'read:own',
+                attributes: '*, !password',
+                owner: sa.id,
+            },
+        })
+
+        await prisma.permissions.create({
+            data: {
+                role: 'User',
+                resource: 'users',
+                action: 'update:own',
+                owner: sa.id,
+            },
+        })
+
+        await prisma.permissions.create({
+            data: {
+                role: 'User',
+                resource: 'users',
+                action: 'delete:own',
+                owner: sa.id,
+            },
+        })
+
     }
 }
 main()
