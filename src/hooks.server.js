@@ -19,7 +19,10 @@ Object.keys(models).forEach(m => cache.set(m, models[m]['fields']))
 
 //check valid jwt, permission to call endpoint, add posession to request
 export async function handle({ event, resolve }) {
-    log.debug(event.request.method + ' ' + event.url.pathname + event.url.search);
+    const before = Date.now()
+    if (!(event.request.method === 'GET' && event.url.pathname === '/')) {
+        log.debug(event.request.method + ' ' + event.url.pathname + event.url.search);
+    }
 
     if (!open.includes(event.url.pathname)) {
         const token = header(event)
@@ -110,7 +113,10 @@ export async function handle({ event, resolve }) {
         }
     }
 
-    return await resolve(event);
+    const response = await resolve(event);
+    const after = Date.now()
+    log.debug(`${event.request.method} ${event.url.pathname}  ${after - before}ms`);
+    return response
 }
 
 export async function handleError({ error, event, status, message }) {

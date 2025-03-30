@@ -43,15 +43,3 @@ export const query = async (endpoint) => {
         return data
     }
 }
-
-export const toast = (message, status) => {
-    new Notify ({
-        type: 1,
-        text: message,
-        status: status,
-        autoclose: true,
-        autotimeout: 5000,
-        position: 'top x-center',
-        showCloseButton: false,
-    });
-}

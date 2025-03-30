@@ -1,7 +1,7 @@
 import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma.js";
 import bcrypt from "bcrypt";
-import {random} from "$lib/server/common.js";
+import cryptoRandomString from 'crypto-random-string';
 
 const TWO_FACTOR_AUTH = false
 
@@ -73,7 +73,7 @@ export async function POST(event) {
     if (users.length) {
         throw error(404, 'Email already exists')
     } else {
-        data.nonce = random(64)
+        data.nonce = cryptoRandomString({length: 64})
         if (data.password) {
             try {
                 await bcrypt.getRounds(data.password) //will fail for plain text

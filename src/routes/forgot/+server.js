@@ -1,6 +1,6 @@
 import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma.js";
-import {random} from "$lib/server/common.js";
+import cryptoRandomString from 'crypto-random-string';
 
 export async function POST(event) {
     const data = await event.request.json();
@@ -14,7 +14,7 @@ export async function POST(event) {
     if (!users.length) {
         throw error(404, 'Invalid email')
     } else {
-        data.nonce = random(64)
+        data.nonce = cryptoRandomString({length: 64})
         data.username = users[0].username
         data.userId = users[0].id
         await prisma.temp.create({

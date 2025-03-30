@@ -3,20 +3,6 @@ import NodeCache from "node-cache";
 
 export const cache = new NodeCache()
 
-const char_set = '0123456789abcdefghijlkmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-
-function max_random_number(max) {
-    return Math.floor(Math.random() * max);
-}
-
-export const random = (length) => {
-    let random_string = '';
-    for(let i = 0; i < length; i++) {
-        random_string += char_set[max_random_number(char_set.length - 1)];
-    }
-    return random_string;
-}
-
 export const remove = (data, keys) => {
     for (let i in data) {
         if (typeof data[i] === 'object') {

@@ -23,8 +23,7 @@ export const prisma = new PrismaClient({
 })
 
 prisma.$on('query', (e) => {
-    log.debug('Query: ' + e.query)
-    log.debug('Params: ' + e.params)
+    log.debug(`${e.query} ${e.params} ${e.duration}ms`)
 })
 
 prisma.$on('error', (e) => {
@@ -37,13 +36,4 @@ prisma.$on('info', (e) => {
 
 prisma.$on('warn', (e) => {
     log.warn(e)
-})
-
-prisma.$use(async (params, next) => {
-    const before = Date.now()
-    const result = await next(params)
-    const after = Date.now()
-    log.debug(`${params.model}.${params.action} ${after - before}ms`)
-
-    return result
 })

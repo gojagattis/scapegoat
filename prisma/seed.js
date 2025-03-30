@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import { createId } from '@paralleldrive/cuid2';
 
 const prisma = new PrismaClient()
-const exclude = ['litestream_lock', 'litestream_lock', 'litestream_seq']
+const exclude = ['litestream_lock', 'litestream_seq']
 
 async function main() {
     const users = await prisma.users.findMany({})
