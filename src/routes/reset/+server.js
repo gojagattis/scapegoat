@@ -1,7 +1,7 @@
 import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma.js";
 import bcrypt from "bcrypt";
-import {tenant} from "$lib/server/common.js";
+import {claims} from "$lib/server/common.js";
 
 export async function POST(event) {
     const data = await event.request.json()
@@ -18,7 +18,7 @@ export async function POST(event) {
     } else {
         user = await prisma.users.findUnique({
             where: {
-                id: (tenant(event)).user
+                id: (claims(event)).user
             }
         })
         const result = await bcrypt.compare(data.previous, user.password);

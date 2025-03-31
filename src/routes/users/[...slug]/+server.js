@@ -2,7 +2,7 @@ import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
 import bcrypt from "bcrypt";
-import {cache, tenant, remove, check} from "$lib/server/common.js";
+import {cache, claims, remove, check} from "$lib/server/common.js";
 
 async function fetch(id, event, skip = false, relation = null) {
     const include = {}
@@ -47,7 +47,7 @@ async function fetch(id, event, skip = false, relation = null) {
         include: include
     })
     if (model && !(skip && model.public)) {
-        const auth = tenant(event)
+        const auth = claims(event)
         if (model.hasOwnProperty('user') && event.possession.own && model.user !== auth.user) {
             throw error(403, 'Forbidden')
         } else if (((model.hasOwnProperty('user') && event.possession.any) ||

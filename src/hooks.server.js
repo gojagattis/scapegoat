@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import {prisma} from "$lib/prisma.js";
 import {AccessControl} from "accesscontrol";
 import {log} from "$lib/logger.js";
-import {tenant, header, cache} from "$lib/server/common.js";
+import {claims, token, cache} from "$lib/server/common.js";
 import {error} from "@sveltejs/kit";
 
 const open = ['/login', '/register', '/forgot', '/reset', '/', '/favicon.ico'] //open endpoints
@@ -25,18 +25,18 @@ export async function handle({ event, resolve }) {
     }
 
     if (!open.includes(event.url.pathname)) {
-        const token = header(event)
-        if (!token) {
+        const auth = token(event)
+        if (!auth) {
             throw error(401, 'An authorization header with a valid token is required to access this resource')
         } else {
             try {
-                jwt.verify(token, import.meta.env.VITE_JWT_SECRET);
+                jwt.verify(auth, import.meta.env.VITE_JWT_SECRET);
             } catch (e) {
                 throw error(401, e)
             }
         }
 
-        const payload = tenant(event);
+        const payload = claims(event);
         const resource = event.url.pathname.split('/')[1];
         const action = event.request.method;
 

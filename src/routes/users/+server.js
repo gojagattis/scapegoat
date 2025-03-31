@@ -1,7 +1,7 @@
 import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
-import {tenant, cache} from "$lib/server/common.js";
+import {claims, cache} from "$lib/server/common.js";
 import bcrypt from "bcrypt";
 
 const entity = 'users'
@@ -10,7 +10,7 @@ export async function POST(event) {
     try {
         const data = await event.request.json();
         ['id', 'org', 'creator', 'created', 'updated'].forEach(i => delete data[i]);
-        const owner = tenant(event)
+        const owner = claims(event)
         data.creator = owner.user
         data.org = owner.org
         if (data.password) { //hash password if it is plaintext
@@ -66,7 +66,7 @@ export async function GET(event) {
     const operator = params.get('operator') ? params.get('operator') : 'contains';
     const value = params.get('value') ? params.get('value') : null;
     const active = params.get('active') ? params.get('active') : 'true';
-    const auth = tenant(event)
+    const auth = claims(event)
     const schema = cache.get(entity)
     const user = schema.find(s => s.kind === 'object' && s.type === 'users' && !s.isList)
 
