@@ -3,25 +3,24 @@ import NodeCache from "node-cache";
 
 export const cache = new NodeCache()
 
-export const remove = (data, keys) => {
+export const sanitize = (data, keys) => {
     for (let i in data) {
         if (typeof data[i] === 'object') {
-            remove(data[i], keys)
+            sanitize(data[i], keys)
         } else if (keys.includes(i)) {
             delete data[i]
         }
     }
 }
 
-export const check = (obj, event) => {
+export const prepare = (obj, event) => {
     Object.entries(obj).forEach(entry => {
         const [key, value] = entry
         if (value && typeof value === 'object') {
             if (key === 'create') {
-                const owner = claims(event)
-                value.creator = owner.user
+                value.owner = (claims(event)).sub
             }
-            check(value, event)
+            prepare(value, event)
         }
     })
 }

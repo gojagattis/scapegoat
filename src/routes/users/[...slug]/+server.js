@@ -2,7 +2,7 @@ import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
 import bcrypt from "bcrypt";
-import {cache, claims, remove, check} from "$lib/server/common.js";
+import {cache, claims, sanitize, prepare} from "$lib/server/common.js";
 
 async function fetch(id, event, skip = false, relation = null) {
     const include = {}
@@ -103,7 +103,7 @@ export async function PUT(event) {
     }
     try {
         const data = await event.request.json();
-        remove(data, ['org', 'creator', 'created', 'updated', 'user'])
+        sanitize(data, ['org', 'creator', 'created', 'updated', 'user'])
         delete data['id']
         if (data.password) {
             data.password = await bcrypt.hash(data.password, 10)
@@ -111,7 +111,7 @@ export async function PUT(event) {
         if (data.hasOwnProperty('public') && event.possession.own) {
             delete data.public
         }
-        check(data, event)
+        prepare(data, event)
 
         const model = await prisma.users.update({
             data: data,

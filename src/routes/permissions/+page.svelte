@@ -1,6 +1,6 @@
 <script>
-    import {afterUpdate, getContext, onMount} from "svelte";
-    import {bearer, toast, query, labelize, singularize} from "$lib/common";
+    import {getContext, onMount} from "svelte";
+    import {bearer, query, labelize, singularize} from "$lib/common";
     import dayjs from "dayjs";
     import {browser} from "$app/environment";
 
@@ -106,10 +106,6 @@
         }, 250);
     })
 
-    afterUpdate(() => {
-        feather.replace();
-    })
-
     function reset(all = true) {
         models = [];
         model = {};
@@ -135,7 +131,7 @@
             method: 'POST',
             body: JSON.stringify(model),
             headers: {
-                'Authorization': bearer(),
+                'Authorization': bearer,
                 'Content-type': 'application/json'
             }
         });
@@ -161,7 +157,7 @@
             method: 'PUT',
             body: JSON.stringify(model),
             headers: {
-                'Authorization': bearer(),
+                'Authorization': bearer,
                 'Content-type': 'application/json'
             }
         });
@@ -184,7 +180,7 @@
         const response = await fetch(`/${entity}/${model.id}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': bearer(),
+                'Authorization': bearer,
             }
         })
         if (response.ok) {

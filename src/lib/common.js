@@ -26,19 +26,15 @@ export const token = () => {
     return value ? value.replaceAll('"', '') : null
 }
 
-export const bearer = () => 'Bearer ' + token();
-
-export const principal = () => {
-    return JSON.parse(atob(token().split('.')[1]))
-}
+export const bearer = `Bearer ${token()}`
 
 export const query = async (endpoint) => {
     const response = await fetch(endpoint, {
         headers: {
-            'Authorization': bearer()
+            'Authorization': bearer
         }
     });
-    let data = await response.json();
+    const data = await response.json();
     if (response.ok) {
         return data
     }

@@ -1,6 +1,6 @@
 <script>
-    import {afterUpdate, onMount} from "svelte";
-    import {bearer, toast, query} from "$lib/common";
+    import {onMount} from "svelte";
+    import {bearer, query} from "$lib/common";
 
     let roles = []
     let resources = []
@@ -14,10 +14,6 @@
     onMount(async () => {
         roles = await query(`/roles`)
         resources = await query(`/resources`)
-    })
-
-    afterUpdate(() => {
-        feather.replace();
     })
 
     async function load() {
@@ -41,7 +37,7 @@
                 const response = await fetch(`/permissions/${perm.id}`, {
                     method: 'DELETE',
                     headers: {
-                        'Authorization': bearer(),
+                        'Authorization': bearer,
                     }
                 })
                 if (response.ok) {
@@ -54,7 +50,7 @@
                     method: 'PUT',
                     body: JSON.stringify(perm),
                     headers: {
-                        'Authorization': bearer(),
+                        'Authorization': bearer,
                         'Content-type': 'application/json'
                     }
                 })
@@ -69,7 +65,7 @@
                 method: 'POST',
                 body: JSON.stringify(perm),
                 headers: {
-                    'Authorization': bearer(),
+                    'Authorization': bearer,
                     'Content-type': 'application/json'
                 }
             })
