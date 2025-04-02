@@ -1,10 +1,7 @@
 <script>
-    import {getContext, onMount} from "svelte";
+    import {getContext} from "svelte";
 
     const authenticated = getContext('authenticated')
-
-    onMount(async () => {
-    })
 </script>
 
 {#if $authenticated}

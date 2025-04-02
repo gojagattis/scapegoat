@@ -18,6 +18,7 @@ model users {
     owner               String
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
+    roles               roles[]
 }
 
 model roles {
@@ -28,20 +29,8 @@ model roles {
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
 
-    grants              grants[]
+    users               users[]
     permissions         permissions[]
-}
-
-model grants {
-    id                  String @default(cuid(2))
-    user                String
-    roleRef             roles @relation(fields: [role], references: [name], onDelete: Cascade)
-    role                String
-    owner               String
-    created             DateTime @default(now())
-    updated             DateTime @default(now()) @updatedAt
-
-    @@unique([user, role])
 }
 
 model permissions {

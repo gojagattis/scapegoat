@@ -5,19 +5,20 @@ import {log} from "$lib/logger.js";
 import {claims, token, cache} from "$lib/server/common.js";
 import {error} from "@sveltejs/kit";
 
-const open = ['/login', '/register', '/forgot', '/reset', '/', '/favicon.ico'] //open endpoints
+const open = ['/login', '/register', '/forgot', '/reset', '/']
 
-prisma.$queryRaw`PRAGMA journal_mode = WAL;`
-prisma.$queryRaw`PRAGMA busy_timeout = 5000;`
-prisma.$queryRaw`PRAGMA synchronous = NORMAL;`
-prisma.$queryRaw`PRAGMA wal_autocheckpoint = 0;`
-prisma.$queryRaw`pragma temp_store = memory;`
-prisma.$queryRaw`pragma mmap_size = 30000000000;`
+export async function init() {
+    prisma.$queryRaw`PRAGMA journal_mode = WAL;`
+    prisma.$queryRaw`PRAGMA busy_timeout = 5000;`
+    prisma.$queryRaw`PRAGMA synchronous = NORMAL;`
+    prisma.$queryRaw`PRAGMA wal_autocheckpoint = 0;`
+    prisma.$queryRaw`pragma temp_store = memory;`
+    prisma.$queryRaw`pragma mmap_size = 30000000000;`
 
-const models = prisma['_runtimeDataModel']['models']
-Object.keys(models).forEach(m => cache.set(m, models[m]['fields']))
+    const models = prisma['_runtimeDataModel']['models']
+    Object.keys(models).forEach(m => cache.set(m, models[m]['fields']))
+}
 
-//check valid jwt, permission to call endpoint, add posession to request
 export async function handle({ event, resolve }) {
     const before = Date.now()
     if (!(event.request.method === 'GET' && event.url.pathname === '/')) {
@@ -27,12 +28,12 @@ export async function handle({ event, resolve }) {
     if (!open.includes(event.url.pathname)) {
         const auth = token(event)
         if (!auth) {
-            throw error(401, 'An authorization header with a valid token is required to access this resource')
+            error(401, 'An authorization header with a valid token is required to access this resource')
         } else {
             try {
                 jwt.verify(auth, import.meta.env.VITE_JWT_SECRET);
             } catch (e) {
-                throw error(401, e)
+                error(401, e)
             }
         }
 
@@ -40,23 +41,13 @@ export async function handle({ event, resolve }) {
         const resource = event.url.pathname.split('/')[1];
         const action = event.request.method;
 
-        const roles = [];
+        const roles = payload.roles;
         const grants = [];
-        await prisma.users.findUnique({
+        await prisma.permissions.findMany({
             where: {
-                id: payload.user
+                role: { in: roles },
             },
-            include: {
-                roles: {
-                    include: {
-                        permissions: true
-                    }
-                }
-            }
-        }).then(user => user.roles.forEach(r => {
-            roles.push(r.name)
-            r.permissions.forEach(p => grants.push(p))
-        }))
+        }).then(p => grants.push(p))
 
         const ac = new AccessControl(grants);
         let any, own;
@@ -101,15 +92,15 @@ export async function handle({ event, resolve }) {
                 }
             }
         } else {
-            throw error(400, 'Unsupported')
+            error(400, 'Bad request')
         }
 
         if (any.granted) {
-            event.possession = {any: true}
+            event.locals.possession = 'any'
         } else if (own.granted) {
-            event.possession = {own: true}
+            event.locals.possession = 'own'
         } else {
-            throw error(403, `${payload.name} is denied ${action} right on ${resource}`)
+            error(403, `${payload.name} is denied ${action} right on ${resource}`)
         }
     }
 

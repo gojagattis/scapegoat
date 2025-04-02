@@ -1,6 +1,5 @@
 import {PrismaClient} from "@prisma/client";
 import bcrypt from "bcrypt";
-import { createId } from '@paralleldrive/cuid2';
 
 const prisma = new PrismaClient()
 const exclude = ['litestream_lock', 'litestream_seq']
@@ -8,23 +7,28 @@ const exclude = ['litestream_lock', 'litestream_seq']
 async function main() {
     const users = await prisma.users.findMany({})
     if (users.length === 0) {
-        let id = createId()
         const sa = await prisma.users.create({
             data: {
-                id: id,
                 username: 'admin',
                 password: await bcrypt.hash('admin', 10),
-                owner: id,
+                owner: 'admin',
             },
         })
 
-        id = createId()
-        await prisma.users.create({
+        await prisma.users.update({
             data: {
-                id: id,
+                owner: sa.id,
+            },
+            where: {
+                id: sa.id
+            }
+        })
+
+        const demo = await prisma.users.create({
+            data: {
                 username: 'demo',
                 password: await bcrypt.hash('demo', 10),
-                owner: id,
+                owner: sa.id,
             },
         })
 
@@ -32,6 +36,9 @@ async function main() {
             data: {
                 name: 'Admin',
                 owner: sa.id,
+                users: {
+                    connect: [ { id: sa.id } ]
+                }
             },
         })
 
@@ -39,22 +46,9 @@ async function main() {
             data: {
                 name: 'User',
                 owner: sa.id,
-            },
-        })
-
-        await prisma.grants.create({
-            data: {
-                user: 'admin',
-                role: 'Admin',
-                owner: sa.id,
-            },
-        })
-
-        await prisma.grants.create({
-            data: {
-                user: 'demo',
-                role: 'User',
-                owner: sa.id,
+                users: {
+                    connect: [ { id: demo.id } ]
+                }
             },
         })
 
@@ -99,25 +93,6 @@ async function main() {
                 owner: sa.id,
             },
         })
-
-        await prisma.permissions.create({
-            data: {
-                role: 'User',
-                resource: 'users',
-                action: 'update:own',
-                owner: sa.id,
-            },
-        })
-
-        await prisma.permissions.create({
-            data: {
-                role: 'User',
-                resource: 'users',
-                action: 'delete:own',
-                owner: sa.id,
-            },
-        })
-
     }
 }
 main()
