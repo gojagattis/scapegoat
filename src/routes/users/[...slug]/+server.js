@@ -68,7 +68,6 @@ export async function GET(event) {
 
     const model = await fetch(slug.split('/')[0], event, true, slug.split('/')[1])
     if (model) {
-        delete model['password']
         return json(model)
     } else {
         throw error(404, model)
@@ -88,7 +87,6 @@ export async function DELETE(event) {
             }
         });
 
-        delete model['password']
         return json(model)
     } catch (e) {
         log.error(e)
@@ -120,7 +118,6 @@ export async function PUT(event) {
             }
         });
 
-        delete model['password']
         return json(model);
     } catch (e) {
         log.error(e)

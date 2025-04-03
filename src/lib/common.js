@@ -1,5 +1,5 @@
-import Notify from "./simple-notify.es.js";
 import nouns from "pluralize";
+import { browser } from '$app/environment';
 
 export const emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
 export const passwordRegex = /^.{8,}$/
@@ -16,14 +16,17 @@ export const singularize = (raw) => {
 }
 
 export const token = () => {
-    let value = sessionStorage.getItem('auth')
-    if (!value) {
-        value = localStorage.getItem('auth')
+    if (browser) {
+        let value = sessionStorage.getItem('token')
+        if (!value) {
+            value = localStorage.getItem('token')
+        }
+        if (!value) {
+            value = document.cookie.split('=')[1]
+        }
+        return value ? value.replaceAll('"', '') : null
     }
-    if (!value) {
-        value = document.cookie.split('=')[1]
-    }
-    return value ? value.replaceAll('"', '') : null
+    return null
 }
 
 export const bearer = `Bearer ${token()}`

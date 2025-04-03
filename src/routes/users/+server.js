@@ -48,7 +48,6 @@ export async function POST(event) {
             data: data,
         });
 
-        delete model['password']
         return json(model);
     } catch (e) {
         log.error(e)
