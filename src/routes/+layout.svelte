@@ -37,6 +37,8 @@
             }
             document.cookie = "token=" + data + "; path=/";
             authenticated = true
+            model = {username: '', password: '', extend: false}
+            error = ''
         } else {
             error = data.message
         }
@@ -55,38 +57,42 @@
     <link rel="stylesheet" href="/classless.css">
 </svelte:head>
 
-{#if browser && authenticated}
-    <nav>
-        <ul>
-            <li>Brand</li>
-            <li>Sticky Right</li>
-            <li><a href="#/">Item </a></li>
-            <li><a href="#/">Menu ▾</a>
-                <ul>
-                    <li><a href="#/">Menu 1</a></li>
-                    <li><a href="#/">Menu 2</a></li>
-                </ul>
-            </li>
-            <li><a href="#/" onclick={logout}>Logout</a></li>
-        </ul>
-    </nav>
-    {@render children()}
+{#if browser}
+    {#if authenticated}
+        <nav>
+            <ul>
+                <li>Brand</li>
+                <li>Sticky Right</li>
+                <li><a href="#/">Item </a></li>
+                <li><a href="#/">Menu ▾</a>
+                    <ul>
+                        <li><a href="#/">Menu 1</a></li>
+                        <li><a href="#/">Menu 2</a></li>
+                    </ul>
+                </li>
+                <li><a href="#/" onclick={logout}>Logout</a></li>
+            </ul>
+        </nav>
+        {@render children()}
+    {:else}
+        <fieldset>
+            <hgroup>
+                <h1>Sign in</h1>
+                <h2>Login to your account</h2>
+            </hgroup>
+            <span style="color: red">{error}</span>
+            <form>
+                <label>Email<input type="text" bind:value={model.username}></label>
+                <label>Password<input type="password" bind:value={model.password}></label>
+                <label><input type="checkbox" bind:checked={model.extend}> Remember me</label>
+                <button onclick={login}>Login</button>
+            </form>
+            <a href="/register">Sign up</a> |
+            <a href="/forgot">Forgot password?</a>
+        </fieldset>
+    {/if}
 {:else}
-    <fieldset>
-        <hgroup>
-            <h1>Sign in</h1>
-            <h2>Login to your account</h2>
-        </hgroup>
-        <span style="color: red">{error}</span>
-        <form>
-            <label>Email<input type="text" bind:value={model.username}></label>
-            <label>Password<input type="password" bind:value={model.password}></label>
-            <label><input type="checkbox" bind:checked={model.extend}> Remember me</label>
-            <button onclick={login}>Login</button>
-        </form>
-        <a href="/register">Sign up</a> |
-        <a href="/forgot">Forgot password?</a>
-    </fieldset>
+    Loading...
 {/if}
 
 <style>

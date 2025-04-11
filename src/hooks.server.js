@@ -4,6 +4,7 @@ import {AccessControl} from "accesscontrol";
 import {log} from "$lib/logger.js";
 import {claims, token, cache} from "$lib/server/common.js";
 import {error} from "@sveltejs/kit";
+import cryptoRandomString from 'crypto-random-string';
 
 const open = ['/login', '/register', '/forgot', '/reset', '/']
 
@@ -37,17 +38,17 @@ export async function handle({ event, resolve }) {
             }
         }
 
-        const payload = claims(event);
-        const resource = event.url.pathname.split('/')[1];
-        const action = event.request.method;
+        const payload = claims(event)
+        event.locals.claims = payload
+        const resource = event.url.pathname.split('/')[1]
+        const action = event.request.method
 
         const roles = payload.roles;
-        const grants = [];
-        await prisma.permissions.findMany({
+        const grants = await prisma.permissions.findMany({
             where: {
                 role: { in: roles },
             },
-        }).then(p => grants.push(p))
+        })
 
         const ac = new AccessControl(grants);
         let any, own;
@@ -96,9 +97,11 @@ export async function handle({ event, resolve }) {
         }
 
         if (any.granted) {
-            event.locals.possession = 'any'
+            any.possession = 'any'
+            event.locals.permission = any
         } else if (own.granted) {
-            event.locals.possession = 'own'
+            own.possession = 'own'
+            event.locals.permission = own
         } else {
             error(403, `${payload.name} is denied ${action} right on ${resource}`)
         }
@@ -111,12 +114,12 @@ export async function handle({ event, resolve }) {
 }
 
 export async function handleError({ error, event, status, message }) {
-    const errorId = crypto.randomUUID();
-    error.ref = errorId;
-    log.error('%O', error);
+    const errorId = cryptoRandomString({length: 31})
+    error.ref = errorId
+    log.error('%O', error)
 
     return {
         message: error.message,
         ref: errorId,
-    };
+    }
 }
