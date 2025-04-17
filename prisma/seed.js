@@ -1,5 +1,6 @@
 import {PrismaClient} from "@prisma/client";
 import bcrypt from "bcrypt";
+import { createId } from '@paralleldrive/cuid2';
 
 const prisma = new PrismaClient()
 const exclude = ['litestream_lock', 'litestream_seq']
@@ -7,32 +8,27 @@ const exclude = ['litestream_lock', 'litestream_seq']
 async function main() {
     const users = await prisma.users.findMany({})
     if (users.length === 0) {
+        let id = createId()
         const sa = await prisma.users.create({
             data: {
+                id: id,
                 username: 'admin',
                 password: await bcrypt.hash('admin', 10),
-                owner: 'admin',
+                owner: id,
             },
         })
 
-        await prisma.users.update({
-            data: {
-                owner: sa.id,
-            },
-            where: {
-                id: sa.id
-            }
-        })
-
+        id = createId()
         const demo = await prisma.users.create({
             data: {
+                id: id,
                 username: 'demo',
                 password: await bcrypt.hash('demo', 10),
-                owner: sa.id,
+                owner: id,
             },
         })
 
-        const admin = await prisma.roles.create({
+        await prisma.roles.create({
             data: {
                 name: 'Admin',
                 owner: sa.id,
@@ -42,7 +38,7 @@ async function main() {
             },
         })
 
-        const user = await prisma.roles.create({
+        await prisma.roles.create({
             data: {
                 name: 'User',
                 owner: sa.id,

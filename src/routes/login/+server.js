@@ -2,6 +2,7 @@ import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { log } from '$lib/logger.js';
 
 export async function POST(event) {
     const data = await event.request.json();
@@ -14,7 +15,17 @@ export async function POST(event) {
             username: data.username
         },
         include: {
-            roles: true
+            roles: {
+                select: {
+                    name: true,
+                    permissions: {
+                        select: {
+                            resource: true,
+                            action: true,
+                        }
+                    }
+                }
+            }
         }
     })
 
@@ -34,6 +45,9 @@ export async function POST(event) {
         const duration = data.extend ? import.meta.env.VITE_EXTENDED_SESSION : import.meta.env.VITE_DEFAULT_SESSION
         const token = jwt.sign(payload, import.meta.env.VITE_JWT_SECRET, {expiresIn: duration});
 
-        return json(token);
+        return json({
+            token: token,
+            roles: user.roles,
+        });
     }
 }

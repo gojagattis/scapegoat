@@ -1,21 +1,34 @@
 <script>
     import {onMount} from "svelte";
     import {browser} from "$app/environment";
-    import {token} from "$lib/common.js";
+    import { token, query, labelize } from "$lib/common.js";
     import dayjs from "dayjs";
 
     let { children } = $props()
     let authenticated = $state(false)
     let model = $state({username: '', password: '', extend: false})
     let error = $state('');
+    let resources = $state([])
+
+    function privileges(roles) {
+        resources = []
+        roles.forEach(role => {
+            role.permissions.forEach(perm => {
+                if (perm.action.startsWith('read:')) {
+                    resources.push(perm.resource)
+                }
+            })
+        })
+    }
 
     onMount(async () => {
         const jwt = token()
         if (jwt) {
             const now = dayjs().unix()
-            const payload = (JSON.parse(atob(jwt.split('.')[1])));
-            if (payload.exp > now) {
+            const claims = (JSON.parse(atob(jwt.split('.')[1])));
+            if (claims.exp > now) {
                 authenticated = true
+                privileges((await query(`/users/${claims.sub}?select=roles!@(permissions@resource@action)`)).roles)
             }
         }
     })
@@ -30,15 +43,16 @@
         });
         let data = await response.json();
         if (response.ok) {
-            if (model.extend) {
-                localStorage.setItem('token', JSON.stringify(data))
-            } else {
-                sessionStorage.setItem('token', JSON.stringify(data))
-            }
-            document.cookie = "token=" + data + "; path=/";
-            authenticated = true
             model = {username: '', password: '', extend: false}
             error = ''
+            if (model.extend) {
+                localStorage.setItem('token', JSON.stringify(data.token))
+            } else {
+                sessionStorage.setItem('token', JSON.stringify(data.token))
+            }
+            document.cookie = "token=" + data.token + "; path=/";
+            authenticated = true
+            privileges(data.roles)
         } else {
             error = data.message
         }
@@ -47,8 +61,9 @@
     function logout() {
         sessionStorage.clear()
         localStorage.clear()
-        document.cookie = "token=; max-age=0; path=/";
+        document.cookie = "token=; max-age=0; path=/"
         authenticated = false
+        resources = []
     }
 </script>
 
@@ -61,9 +76,9 @@
     {#if authenticated}
         <nav>
             <ul>
-                <li>Brand</li>
-                <li>Sticky Right</li>
-                <li><a href="#/">Item </a></li>
+                {#each resources as resource}
+                    <li><a href={resource}>{labelize(resource)} </a></li>
+                {/each}
                 <li><a href="#/">Menu ▾</a>
                     <ul>
                         <li><a href="#/">Menu 1</a></li>

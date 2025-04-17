@@ -36,8 +36,6 @@ export async function GET(event) {
             error(403, 'Forbidden')
         }
     }
-    log.debug(`>>>>>>>>>>> ${JSON.stringify(event.locals.claims, null, 2)}`);
-    log.debug(`>>>>>>>>>>> ${JSON.stringify(permission, null, 2)}`);
     if (model && permission && permission.attributes.length > 0) {
         if (!(permission.attributes.length === 1 && permission.attributes[0] === '*')) {
             model = permission.filter(model)
