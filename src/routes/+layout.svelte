@@ -1,7 +1,7 @@
 <script>
     import {onMount} from "svelte";
     import {browser} from "$app/environment";
-    import { token, query, labelize } from "$lib/common.js";
+    import { token, query, capitalize } from "$lib/common.js";
     import dayjs from "dayjs";
 
     let { children } = $props()
@@ -77,7 +77,7 @@
         <nav>
             <ul>
                 {#each resources as resource}
-                    <li><a href={resource}>{labelize(resource)} </a></li>
+                    <li><a href={resource}>{capitalize(resource)} </a></li>
                 {/each}
                 <li><a href="#/">Menu ▾</a>
                     <ul>

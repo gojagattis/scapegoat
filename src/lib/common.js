@@ -5,12 +5,12 @@ export const emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)
 export const passwordRegex = /^.{8,}$/
 // export const passwordRegex = /^(?=.*[0-9])(?=.*[A-Z])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{8,20}$/
 
-export const labelize = (raw) => {
+export const capitalize = (raw) => {
     return (raw.charAt(0).toUpperCase() + raw.slice(1)).replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 
 export const singularize = (raw) => {
-    const label = labelize(raw)
+    const label = capitalize(raw)
     const last = label.split(' ').pop()
     return label.replace(last, nouns.singular(last))
 }

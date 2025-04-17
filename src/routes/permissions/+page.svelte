@@ -1,6 +1,6 @@
 <script>
     import {getContext, onMount} from "svelte";
-    import {bearer, query, labelize, singularize} from "$lib/common";
+    import {bearer, query, capitalize, singularize} from "$lib/common";
     import dayjs from "dayjs";
     import {browser} from "$app/environment";
 
@@ -452,7 +452,7 @@
         <th></th>
         {#each schema as col}
             {#if !hidden.includes(col.name)}
-                <th style="white-space: nowrap; cursor: pointer"><span on:click={async () => await order(col.name)}>{labelize(col.name)} <i style="font-size: .8rem" class="icon icon-resize-vert"></i></span></th>
+                <th style="white-space: nowrap; cursor: pointer"><span on:click={async () => await order(col.name)}>{capitalize(col.name)} <i style="font-size: .8rem" class="icon icon-resize-vert"></i></span></th>
             {/if}
         {/each}
         <th></th>
@@ -492,7 +492,7 @@
             <h3 class="mb-1">{model.id ? 'Update' : 'Add'} Record</h3>
             <div class="my-1">
                 {#each singles as item, i}
-                    <button class="btn btn-link" on:click={() => {showDependent(item)}}>{labelize(Object.keys(item)[0])}</button>
+                    <button class="btn btn-link" on:click={() => {showDependent(item)}}>{capitalize(Object.keys(item)[0])}</button>
                 {/each}
             </div>
         </div>
@@ -500,7 +500,7 @@
         <form id="mutate" class="form-group" on:submit|preventDefault>
             {#each schema as col}
                 {#if !system.includes(col.name)}
-                    <label>{labelize(col.name)}<span class="text-error">{col.isRequired && col.type !== 'Boolean' ? '*' : ''}</span> :
+                    <label>{capitalize(col.name)}<span class="text-error">{col.isRequired && col.type !== 'Boolean' ? '*' : ''}</span> :
                         {#if col.type === 'Boolean'}
                             <label class="form-switch mb-2">
                                 <input type="checkbox" bind:checked={model[col.name]}>
@@ -572,7 +572,7 @@
             </ul>
             <ul>
                 {#each lists as item, i}
-                    <li><a class:bg-secondary={relation === item.name} href="#" on:click={async () => await manage(i)}>{labelize(item.name)}</a></li>
+                    <li><a class:bg-secondary={relation === item.name} href="#" on:click={async () => await manage(i)}>{capitalize(item.name)}</a></li>
                 {/each}
             </ul>
         </nav>
@@ -630,7 +630,7 @@
         <nav>
             <ul>
                 {#each Object.keys(managed) as item, i}
-                    <li><a class:bg-secondary={companion === item.name} href="#" on:click={async () => await manageChildren(i)}>{labelize(item)}</a></li>
+                    <li><a class:bg-secondary={companion === item.name} href="#" on:click={async () => await manageChildren(i)}>{capitalize(item)}</a></li>
                 {/each}
             </ul>
             <ul>
@@ -643,7 +643,7 @@
                 <tr>
                     {#each Object.values(managed)[selected] as col}
                         {#if !hidden.includes(col.name)}
-                            <th>{labelize(col.name)}</th>
+                            <th>{capitalize(col.name)}</th>
                         {/if}
                     {/each}
                     <th></th>
@@ -681,13 +681,13 @@
 <dialog bind:this={dependent}>
     <article class="col-6">
         <div class="grid">
-            <h3 class="mb-1">{labelize(companion)}</h3>
+            <h3 class="mb-1">{capitalize(companion)}</h3>
         </div>
         <div class="text-small mb-2">(<span class="text-error">*</span> indicates required field)</div>
         <form id="substrate" class="form-group" on:submit|preventDefault>
             {#each dict as col}
                 {#if !system.includes(col.name)}
-                    <label>{labelize(col.name)}<span
+                    <label>{capitalize(col.name)}<span
                             class="text-error">{col.isRequired && col.type !== 'Boolean' ? '*' : ''}</span> :
                         {#if col.type === 'Boolean'}
                             <label class="form-switch mb-2">
