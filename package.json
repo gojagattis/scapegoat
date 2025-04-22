@@ -30,19 +30,16 @@
 		"vite": "^6.0.0"
 	},
 	"dependencies": {
-		"@paralleldrive/cuid2": "^2.2.2",
 		"@prisma/client": "^6.5.0",
 		"accesscontrol": "^2.2.1",
 		"bcrypt": "^5.1.1",
 		"crypto-random-string": "^5.0.0",
 		"dayjs": "^1.11.13",
-		"fetch-intercept": "^2.4.0",
 		"jsonwebtoken": "^9.0.2",
 		"node-cache": "^5.1.2",
 		"nodemailer": "^6.10.0",
 		"pluralize": "^8.0.0",
 		"prisma": "^6.5.0",
-		"whatwg-fetch": "^3.6.20",
 		"winston": "^3.17.0"
 	}
 }

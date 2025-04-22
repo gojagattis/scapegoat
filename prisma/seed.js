@@ -1,6 +1,5 @@
 import {PrismaClient} from "@prisma/client";
 import bcrypt from "bcrypt";
-import { createId } from '@paralleldrive/cuid2';
 
 const prisma = new PrismaClient()
 const exclude = ['litestream_lock', 'litestream_seq']
@@ -8,30 +7,25 @@ const exclude = ['litestream_lock', 'litestream_seq']
 async function main() {
     const users = await prisma.users.findMany({})
     if (users.length === 0) {
-        let id = createId()
         const sa = await prisma.users.create({
             data: {
-                id: id,
                 username: 'admin',
                 password: await bcrypt.hash('admin', 10),
-                owner: id,
             },
         })
 
-        id = createId()
         const demo = await prisma.users.create({
             data: {
-                id: id,
                 username: 'demo',
                 password: await bcrypt.hash('demo', 10),
-                owner: id,
+                creator: sa.id,
             },
         })
 
         await prisma.roles.create({
             data: {
                 name: 'Admin',
-                owner: sa.id,
+                creator: sa.id,
                 users: {
                     connect: [ { id: sa.id } ]
                 }
@@ -41,7 +35,7 @@ async function main() {
         await prisma.roles.create({
             data: {
                 name: 'User',
-                owner: sa.id,
+                creator: sa.id,
                 users: {
                     connect: [ { id: demo.id } ]
                 }
@@ -62,7 +56,7 @@ async function main() {
                             resource: resource,
                             action: action,
                             attributes: resource === 'users' && action === 'read:any' ? '*, !password' : '*',
-                            owner: sa.id,
+                            creator: sa.id,
                         },
                     });
                 } catch (e) {
@@ -76,7 +70,7 @@ async function main() {
                 role: 'Admin',
                 resource: 'privileges',
                 action: 'read:any',
-                owner: sa.id,
+                creator: sa.id,
             },
         })
 
@@ -86,7 +80,7 @@ async function main() {
                 resource: 'users',
                 action: 'read:own',
                 attributes: '*, !password',
-                owner: sa.id,
+                creator: sa.id,
             },
         })
     }

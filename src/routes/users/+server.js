@@ -1,10 +1,8 @@
 import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
-import {claims, cache} from "$lib/server/common.js";
+import { claims, cache, where, graph } from '$lib/server/common.js';
 import bcrypt from "bcrypt";
-
-const entity = 'users'
 
 export async function POST(event) {
     try {
@@ -56,120 +54,95 @@ export async function POST(event) {
 }
 
 export async function GET(event) {
-    const params = event.url.searchParams;
-    const skip = params.get('skip') ? parseInt(params.get('skip')) : 0;
-    const take = params.get('take') ? parseInt(params.get('take')) : parseInt(import.meta.env.VITE_PAGE_SIZE);
-    const sort = params.get('sort') ? params.get('sort') : 'created';
-    const direction = params.get('direction') ? params.get('direction') : 'desc';
-    const field = params.get('field') ? params.get('field') : null;
-    const operator = params.get('operator') ? params.get('operator') : 'contains';
-    const value = params.get('value') ? params.get('value') : null;
-    const active = params.get('active') ? params.get('active') : 'true';
-    const auth = claims(event)
-    const schema = cache.get(entity)
-    const user = schema.find(s => s.kind === 'object' && s.type === 'users' && !s.isList)
+    const params = Object.fromEntries(event.url.searchParams)
+    const metadata = cache.get(event.url.pathname.split('/')[1])
+    const schema = params.schema ? params.schema : null
+    if (schema === 'only') {
+        return json(metadata)
+    }
+
+    const skip = params.skip ? parseInt(params.skip) : 0
+    const take = params.take ? parseInt(params.take) : 25
+    const order = params.order ?? 'created'
+    const sort = params.asc ? 'asc' : 'desc'
+    const clause = params.where ? params.where : null
+    const creator = !!params.creator
+    const token = claims(event)
+    const userRel = metadata.find(s => s.kind === 'object' && s.type === 'users' && !s.isList)
+    let fields
+    let include = 'include'
+    let value = {}
+    let userCol, userRef
+    if (userRel) {
+        userCol = userRel.relationFromFields[0]
+        userRef = userRel.relationToFields[0]
+    }
 
     let query = {}
     const filter = {}
-    const or = []
-    const and = []
-    const arr = []
-
-    if (schema.find(s => s.name === 'public' && s.type === 'Boolean') &&
-        !(!user && event.possession.any)) {
-        or.push(
-            {
-                public: true
-            }
-        )
+    let ops = {
+        OR: [],
+        AND:[],
+        NOT: []
     }
 
-    if (user && event.possession.own) {
-        and.push(
-            {
-                user: auth.user
-            }
-        )
+    if (clause) {
+        ops = where(clause)
     }
 
-    if ((user && event.possession.any) || (!user && event.possession.own)) {
-        and.push(
-            {
-                org: auth.org
-            }
-        )
-    }
-
-    if (schema.find(s => s.name === 'active' && s.type === 'Boolean')) {
-        and.push(
-            {
-                active: active.toLowerCase() !== 'false'
-            }
-        )
-    }
-
-    if (value && !field) {
-        const ignore = ['id', 'creator', 'org']
-        const fields = schema.filter(r => r.type === 'String' && !ignore.includes(r.name))
-        Array.from(fields).forEach(f => {
-            arr.push(
-                {
-                    [f.name]: {
-                        [operator]: value
-                    },
-                }
-            )
-        })
-    }
-
-    //Advanced search
-    /*    if (value && field) {
-            or.push(
-                {
-                    [field]: {
-                        [operator]: value
-                    },
-                }
-            )
-        }*/
-
-    if (or.length) {
-        filter.OR = or
-        if (and.length) {
-            filter.OR.push(
-                {
-                    AND: and
-                }
-            )
+    const permission = event.locals.permission
+    if (permission && permission.possession === 'own') {
+        if (userRel && !creator) {
+            ops.AND.push( { [userCol]: userRef === 'id' ? token.sub : token.name } )
+        } else if (creator) {
+            ops.AND.push( { creator: token.sub } )
+        } else {
+            ops.AND.push( { id: token.sub } )
         }
-    } else if (and.length) {
-        filter.AND = and
     }
 
-    if (arr.length) {
-        query.AND = [
-            {
-                OR: arr
-            }
-        ]
-        if (filter) {
-            query.AND.push(filter)
-        }
-    } else if (filter) {
+    fields = graph(params)
+    if (fields) {
+        const [k, v] = (Object.entries(fields))[0]
+        include = k
+        value = v
+        log.debug(`######### ${JSON.stringify(fields, null, 2)}`);
+    }
+
+    if (ops.OR.length) {
+        filter.OR = ops.OR
+    }
+    if (ops.AND.length) {
+        filter.AND = ops.AND
+    }
+    if (ops.NOT.length) {
+        filter.NOT = ops.NOT
+    }
+
+    if (filter) {
         query = filter
     }
 
     log.debug(`Query: ${JSON.stringify(query, null, 2)}`)
-    const data = await prisma.users.findMany({
+    let data = await prisma.users.findMany({
         skip: skip,
         take: take,
         where: query,
+        [include]: value,
         orderBy: {
-            [sort]: direction
+            [order]: sort
         }
     })
-    return json(data.map(item => {
-        delete item['password']
-        return item
-    }))
+    if (data && permission && permission.attributes.length > 0) {
+        if (!(permission.attributes.length === 1 && permission.attributes[0] === '*')) {
+            data = permission.filter(data)
+        }
+    }
+    if (schema === 'include') {
+        return json({
+            schema: metadata,
+            data: data
+        })
+    }
+    return json(data)
 }

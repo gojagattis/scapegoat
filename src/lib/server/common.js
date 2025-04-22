@@ -107,12 +107,50 @@ function include(op, params) {
 
 export const graph = (params) => {
     let query
-    if (params.get('select')) {
-        query = include('select', params.get('select'));
-    } else if (params.get('include')) {
-        query = include('include', params.get('include'));
+    if (params.select) {
+        query = include('select', params.select);
+    } else if (params.include) {
+        query = include('include', params.include);
     }
     return query
+}
+
+export const where = (param) => {
+    const ops = {
+        OR: [],
+        AND:[],
+        NOT: []
+    }
+    if (param.startsWith('@(')) {
+        const unit = param.split('@(')
+        unit.shift()
+        unit.forEach(u => {
+            const terms = u.split('@')
+            const op = terms[0]
+            terms.shift()
+            terms.forEach(t => {
+                t = t.endsWith(')') ? t.slice(0, -1) : t
+                const term = t.split(',')
+                ops[op].push(
+                  {
+                      [term[0]]: {
+                          [term[1]]: term[2]
+                      }
+                  }
+                )
+            })
+        })
+    } else {
+        const term = param.split(',')
+        ops.AND.push(
+          {
+              [term[0]]: {
+                  [term[1]]: term[2]
+              }
+          }
+        )
+    }
+    return ops
 }
 
 export const mailer = nodemailer.createTransport({

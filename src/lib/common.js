@@ -1,6 +1,7 @@
 import nouns from "pluralize";
 import { browser } from '$app/environment';
 
+export const take = 25
 export const emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
 export const passwordRegex = /^.{8,}$/
 // export const passwordRegex = /^(?=.*[0-9])(?=.*[A-Z])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{8,20}$/
@@ -37,8 +38,17 @@ export const query = async (endpoint) => {
             'Authorization': bearer
         }
     });
-    const data = await response.json();
-    if (response.ok) {
-        return data
-    }
+    return await response.json();
+}
+
+export const mutate = async (endpoint, method, data) => {
+    const response = await fetch(endpoint, {
+        method: method,
+        body: JSON.stringify(data),
+        headers: {
+            'Authorization': bearer,
+            'Content-type': 'application/json'
+        }
+    });
+    return await response.json();
 }

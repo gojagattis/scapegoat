@@ -2,24 +2,18 @@ import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
 import bcrypt from "bcrypt";
-import { cache, sanitize, prepare, graph } from '$lib/server/common.js';
-
-const entity = 'users'
+import { sanitize, prepare, graph } from '$lib/server/common.js';
 
 export async function GET(event) {
     const slug = event.params.slug
     let fields
-    let placeholder = 'include'
+    let include = 'include'
     let value = {}
 
-    if (slug.endsWith('metadata')) {
-        return json(cache.get(entity))
-    }
-
-    fields = graph(event.url.searchParams)
+    fields = graph(Object.fromEntries(event.url.searchParams))
     if (fields) {
         const [k, v] = (Object.entries(fields))[0]
-        placeholder = k
+        include = k
         value = v
         log.debug(`######### ${JSON.stringify(fields, null, 2)}`);
     }
@@ -28,7 +22,7 @@ export async function GET(event) {
         where: {
             id: slug
         },
-        [placeholder]: value
+        [include]: value
     })
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
