@@ -1,12 +1,15 @@
 import nouns from "pluralize";
 import { browser } from '$app/environment';
 
-export const take = 25
+export const limit = 25
 export const emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
 export const passwordRegex = /^.{8,}$/
 // export const passwordRegex = /^(?=.*[0-9])(?=.*[A-Z])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{8,20}$/
 
 export const capitalize = (raw) => {
+    if (raw.startsWith('/')) {
+        raw = raw.slice(1)
+    }
     return (raw.charAt(0).toUpperCase() + raw.slice(1)).replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 
@@ -30,25 +33,30 @@ export const token = () => {
     return null
 }
 
-export const bearer = `Bearer ${token()}`
 
 export const query = async (endpoint) => {
     const response = await fetch(endpoint, {
         headers: {
-            'Authorization': bearer
+            'Authorization': `Bearer ${token()}`
         }
-    });
-    return await response.json();
+    })
+    return {
+        ok: response.ok,
+        json: await response.json()
+    }
 }
 
-export const mutate = async (endpoint, method, data) => {
+export const mutate = async (endpoint, data, method = 'POST') => {
     const response = await fetch(endpoint, {
         method: method,
         body: JSON.stringify(data),
         headers: {
-            'Authorization': bearer,
+            'Authorization': `Bearer ${token()}`,
             'Content-type': 'application/json'
         }
-    });
-    return await response.json();
+    })
+    return {
+        ok: response.ok,
+        json: await response.json()
+    }
 }

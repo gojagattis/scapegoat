@@ -28,7 +28,7 @@ export const prepare = (obj, event) => {
 export const token = (event) => {
     let jwt = (event.request.headers.get('authorization'))?.replace('Bearer ', '')
     if (!jwt) {
-        jwt = event.cookies.get('auth')
+        jwt = event.cookies.get('token')
     }
     return jwt
 }

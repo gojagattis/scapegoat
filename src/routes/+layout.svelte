@@ -3,6 +3,7 @@
     import {browser} from "$app/environment";
     import { token, query, capitalize } from "$lib/common.js";
     import dayjs from "dayjs";
+    import { goto } from '$app/navigation';
 
     let { children } = $props()
     let authenticated = $state(false)
@@ -24,12 +25,14 @@
     onMount(async () => {
         const jwt = token()
         if (jwt) {
-            const now = dayjs().unix()
+            const now = dayjs().unix();
             const claims = (JSON.parse(atob(jwt.split('.')[1])));
             if (claims.exp > now) {
                 authenticated = true
-                privileges((await query(`/users/${claims.sub}?select=roles!@(permissions@resource@action)`)).roles)
-            }
+                privileges((await query(`/users/${claims.sub}?select=roles!@(permissions@resource@action)`)).json.roles)
+            } // TODO else
+        } else {
+            document.forms[0].elements[0].focus()
         }
     })
 
@@ -43,8 +46,6 @@
         });
         let data = await response.json();
         if (response.ok) {
-            model = {username: '', password: '', extend: false}
-            error = ''
             if (model.extend) {
                 localStorage.setItem('token', JSON.stringify(data.token))
             } else {
@@ -64,6 +65,9 @@
         document.cookie = "token=; max-age=0; path=/"
         authenticated = false
         resources = []
+        model = {username: '', password: '', extend: false}
+        error = ''
+        goto('/')
     }
 </script>
 

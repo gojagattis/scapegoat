@@ -2,55 +2,53 @@ import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
 import { claims, cache, where, graph } from '$lib/server/common.js';
+import {limit} from "$lib/common";
 import bcrypt from "bcrypt";
 
 export async function POST(event) {
-    try {
-        const data = await event.request.json();
-        ['id', 'org', 'creator', 'created', 'updated'].forEach(i => delete data[i]);
-        const owner = claims(event)
-        data.creator = owner.user
-        data.org = owner.org
-        if (data.password) { //hash password if it is plaintext
-            try {
-                await bcrypt.getRounds(data.password) //will fail for plain text
-            } catch (e) {
-                data.password = await bcrypt.hash(data.password, 10)
-            }
+    const data = await event.request.json();
+    ['id', 'creator', 'created', 'updated'].forEach(i => delete data[i])
+    data.creator = (claims(event)).sub
+    const schema = cache.get(event.url.pathname.split('/')[1])
+    const errors = []
+    schema.forEach(s => {
+        if (s.kind === 'scalar' && s.isRequired && !s.hasDefaultValue && (!data.hasOwnProperty(s.name) || !data[s.name].trim())) {
+            errors.push(s.name)
         }
-        if (data.hasOwnProperty('public') && event.possession.own) {
-            delete data.public
-        }
-        const roles = await prisma.roles.findMany({
-            where: {
-                OR: [
-                    {
-                        org: owner.org,
-                    },
-                    {
-                        public: true,
-                    },
-                ],
-                AND: {
-                    default: true,
-                },
-            },
-            select: {
-                id: true
-            }
-        })
-        data['roles'] = {
-            connect: roles
-        }
-        const model = await prisma.users.create({
-            data: data,
-        });
-
-        return json(model);
-    } catch (e) {
-        log.error(e)
-        throw error(400, e)
+    })
+    if (errors.length) {
+        error(400, `Required fields: ${errors.join(', ')}`)
     }
+    if (data.password) { //hash password if it is plaintext
+        try {
+            await bcrypt.getRounds(data.password) //will fail for plain text
+        } catch (e) {
+            data.password = await bcrypt.hash(data.password, 10)
+        }
+    }
+    const roles = await prisma.roles.findMany({
+        where: {
+            default: true
+        },
+        select: {
+            id: true
+        }
+    })
+    data['roles'] = {
+        connect: roles
+    }
+    let model = await prisma.users.create({
+        data: data,
+    })
+
+    const permission = event.locals.permission
+    if (model && permission && permission.attributes.length > 0) {
+        if (!(permission.attributes.length === 1 && permission.attributes[0] === '*')) {
+            model = permission.filter(model)
+        }
+    }
+
+    return json(model);
 }
 
 export async function GET(event) {
@@ -62,7 +60,7 @@ export async function GET(event) {
     }
 
     const skip = params.skip ? parseInt(params.skip) : 0
-    const take = params.take ? parseInt(params.take) : 25
+    const take = params.take ? parseInt(params.take) : limit
     const order = params.order ?? 'created'
     const sort = params.asc ? 'asc' : 'desc'
     const clause = params.where ? params.where : null

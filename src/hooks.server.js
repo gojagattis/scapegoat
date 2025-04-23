@@ -119,7 +119,7 @@ export async function handleError({ error, event, status, message }) {
     log.error('%O', error)
 
     return {
-        message: error.message,
+        message: (error.message.split('invocation:'))[1],
         ref: errorId,
     }
 }

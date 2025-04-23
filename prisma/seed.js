@@ -35,6 +35,7 @@ async function main() {
         await prisma.roles.create({
             data: {
                 name: 'User',
+                default: true,
                 creator: sa.id,
                 users: {
                     connect: [ { id: demo.id } ]
