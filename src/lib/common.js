@@ -34,8 +34,9 @@ export const token = () => {
 }
 
 
-export const query = async (endpoint) => {
+export const query = async (endpoint, method = 'GET') => {
     const response = await fetch(endpoint, {
+        method: method,
         headers: {
             'Authorization': `Bearer ${token()}`
         }

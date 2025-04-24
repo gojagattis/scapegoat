@@ -6,13 +6,23 @@
     import {browser} from "$app/environment";
 
     const resource = page.url.pathname
-    const gridHide = $state(['password', 'creator'])
+    const gridHide = $state(['id', 'password', 'creator'])
     const formHide = $state(['id', 'creator', 'created', 'updated'])
     let models = $state([])
     let model = $state({})
     let schema = $state([])
     let grid = $state(true)
     let err = $state('')
+
+    $effect(() => {
+        if (grid) {
+            err = ''
+            model = {}
+        }
+        if (!grid) {
+            err = ''
+        }
+    })
 
     //pagination
     let skip = 0
@@ -41,10 +51,10 @@
         Object.keys(model).forEach(k => {
             const meta = schema.find(s => s.name === k)
             if (meta.type === 'DateTime') {
-                model[k] = new Date(model[k])
+                model[k] = model[k] ? new Date(model[k]) : null
             }
         })
-        let response = await mutate(`${resource}${model.id ? `/${model.id}` : ``}`, model, model.id ? 'PUT' : 'POST')
+        const response = await mutate(`${resource}${model.id ? `/${model.id}` : ``}`, model, model.id ? 'PUT' : 'POST')
         if (response.ok) {
             err = ''
             model = {}
@@ -60,11 +70,22 @@
         err = ''
         model = {...item}
         grid = false
-        Object.entries(model).forEach(([k, v]) => {
-            if (Date.parse(v)) {
-                model[k] = v.slice(0, -8) // format for display in datepicker
+        Object.keys(model).forEach(k => {
+            const meta = schema.find(s => s.name === k)
+            if (meta.type === 'DateTime' && model[k]) {
+                model[k] = model[k].slice(0, -14) // format for display in datepicker
             }
         })
+    }
+
+    async function remove(id) {
+        const response = await query(`${resource}/${id}`, 'DELETE')
+        if (response.ok) {
+            err = ''
+            models = models.toSpliced(models.findIndex(m => m.id === id), 1)
+        } else {
+            err = response.json.message
+        }
     }
 
     function orderBy(col) {
@@ -88,6 +109,7 @@
 
 {#if grid}
     <h3>{capitalize(resource)}</h3><button onclick={() => grid = false}>Add</button>
+    <span style="color: red;">{err}</span>
     <table>
         <thead>
         <tr>
@@ -106,7 +128,7 @@
                 {#each schema as col}
                     {#if !gridHide.includes(col.name)}
                         {#if col.type === 'DateTime'}
-                            <td>{item[col.name] ? dayjs(item[col.name]).format('YYYY-MM-DD HH:mm') : ''}</td>
+                            <td>{item[col.name] ? item[col.name].endsWith('T00:00:00.000Z') ? dayjs(item[col.name]).format('YYYY-MM-DD') : dayjs(item[col.name]).format('YYYY-MM-DD HH:mm') : ''}</td>
                         {:else if col.type === 'Boolean'}
                             {#if item[col.name]}
                                 <td><i class="si-check"></i></td>
@@ -120,13 +142,13 @@
                     {/if}
                 {/each}
                 <td><a href="#/" onclick={() => edit(item)}><i class="si-edit"></i></a></td>
-                <td><a href="#/" onclick={remove}><i class="si-trash"></i></a></td>
+                <td><a href="#/" onclick={() => remove(item.id)}><i class="si-trash"></i></a></td>
             </tr>
         {/each}
         </tbody>
     </table>
 {:else}
-    <h3>Add {singularize(resource)}</h3>
+    <h3>{model.id ? 'Edit' : 'Add'} {singularize(resource)}</h3>
     (* indicates required field)
     <br><span style="color: red;">{err}</span>
     <form>
@@ -146,12 +168,12 @@
                     {:else if col.type === 'Float'}
                         <input type="number" bind:value={model[col.name]}>
                     {:else if col.type === 'DateTime'}
-                        <input type="datetime-local" bind:value={model[col.name]}>
+                        <input type="date" bind:value={model[col.name]}>
                     {/if}
                 </label>
             {/if}
         {/each}
-        <button onclick={add}>Add</button>
+        <button onclick={add}>{model.id ? 'Edit' : 'Add'}</button>
         <button onclick={() => grid = true}>Cancel</button>
     </form>
 {/if}

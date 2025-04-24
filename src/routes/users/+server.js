@@ -104,7 +104,6 @@ export async function GET(event) {
         const [k, v] = (Object.entries(fields))[0]
         include = k
         value = v
-        log.debug(`######### ${JSON.stringify(fields, null, 2)}`);
     }
 
     if (ops.OR.length) {

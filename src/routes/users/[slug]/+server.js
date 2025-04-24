@@ -43,23 +43,31 @@ export async function GET(event) {
 }
 
 export async function DELETE(event) {
-    const id = event.params.slug
-    const model = await fetch(id, event)
+    const slug = event.params.slug
+    let model =  await prisma.users.findUnique({
+        where: {
+            id: slug
+        },
+    })
     if (!model) {
-        throw error(404, model)
+        error(404, 'Not Found')
     }
-    try {
-        await prisma.users.delete({
-            where: {
-                id: id
-            }
-        });
+    if (slug === event.locals.claims.sub) {
+        error(403, 'Forbidden')
+    }
+    const permission = event.locals.permission
+    if (permission && permission.possession === 'own') {
+        if (slug !== event.locals.claims.sub) {
+            error(403, 'Forbidden')
+        }
+    }
+    await prisma.users.delete({
+        where: {
+            id: slug
+        }
+    })
 
-        return json(model)
-    } catch (e) {
-        log.error(e)
-        throw error(400, e)
-    }
+    return json({message: 'OK'})
 }
 
 export async function PUT(event) {
@@ -74,7 +82,7 @@ export async function PUT(event) {
     }
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
-        if (model.id !== event.locals.claims.sub) {
+        if (slug !== event.locals.claims.sub) {
             error(403, 'Forbidden')
         }
     }
@@ -89,8 +97,10 @@ export async function PUT(event) {
     }
     const schema = cache.get(event.url.pathname.split('/')[1])
     schema.forEach(s => {
-        if (s.kind === 'scalar' && !system.includes(s.name) && data.hasOwnProperty(s.name)
-                && (s.type !== 'String' || (s.type === 'String' && data[s.name].trim()))) {
+        if (s.kind === 'scalar' && !system.includes(s.name) && data.hasOwnProperty(s.name)) {
+            if (s.type === 'String' && data[s.name]) {
+                data[s.name] = data[s.name].trim()
+            }
             model[s.name] = data[s.name]
         }
     })
