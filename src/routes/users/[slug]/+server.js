@@ -2,7 +2,7 @@ import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
 import bcrypt from "bcrypt";
-import { sanitize, prepare, graph } from '$lib/server/common.js';
+import { sanitize, prepare, graph, cache } from '$lib/server/common.js';
 
 export async function GET(event) {
     const slug = event.params.slug
@@ -15,7 +15,6 @@ export async function GET(event) {
         const [k, v] = (Object.entries(fields))[0]
         include = k
         value = v
-        log.debug(`######### ${JSON.stringify(fields, null, 2)}`);
     }
 
     let model =  await prisma.users.findUnique({
@@ -24,23 +23,22 @@ export async function GET(event) {
         },
         [include]: value
     })
+    if (!model) {
+        error(404, 'Not Found')
+    }
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
-        if (model.owner !== event.locals.claims.sub) {
+        if (model.id !== event.locals.claims.sub) {
             error(403, 'Forbidden')
         }
     }
-    if (model && permission && permission.attributes.length > 0) {
+    if (permission && permission.attributes.length > 0) {
         if (!(permission.attributes.length === 1 && permission.attributes[0] === '*')) {
             model = permission.filter(model)
         }
     }
 
-    if (model) {
-        return json(model)
-    } else {
-        error(404, 'Not Found')
-    }
+    return json(model)
 
 }
 
@@ -65,32 +63,49 @@ export async function DELETE(event) {
 }
 
 export async function PUT(event) {
-    const id = event.params.slug
-    if (!await fetch(id, event)) {
-        throw error(404, null)
+    const slug = event.params.slug
+    let model =  await prisma.users.findUnique({
+        where: {
+            id: slug
+        },
+    })
+    if (!model) {
+        error(404, 'Not Found')
     }
-    try {
-        const data = await event.request.json();
-        sanitize(data, ['org', 'creator', 'created', 'updated', 'user'])
-        delete data['id']
-        if (data.password) {
-            data.password = await bcrypt.hash(data.password, 10)
+    const permission = event.locals.permission
+    if (permission && permission.possession === 'own') {
+        if (model.id !== event.locals.claims.sub) {
+            error(403, 'Forbidden')
         }
-        if (data.hasOwnProperty('public') && event.possession.own) {
-            delete data.public
-        }
-        prepare(data, event)
-
-        const model = await prisma.users.update({
-            data: data,
-            where: {
-                id: id
-            }
-        });
-
-        return json(model);
-    } catch (e) {
-        log.error(e)
-        throw error(400, e)
     }
+    const data = await event.request.json();
+    const system = ['id', 'creator', 'created', 'updated', 'password']
+    if (data.password && data.password.trim()) { //hash password if it is plaintext
+        try {
+            await bcrypt.getRounds(data.password) //will fail for plain text
+        } catch (e) {
+            model.password = await bcrypt.hash(data.password, 10)
+        }
+    }
+    const schema = cache.get(event.url.pathname.split('/')[1])
+    schema.forEach(s => {
+        if (s.kind === 'scalar' && !system.includes(s.name) && data.hasOwnProperty(s.name)
+                && (s.type !== 'String' || (s.type === 'String' && data[s.name].trim()))) {
+            model[s.name] = data[s.name]
+        }
+    })
+
+    model = await prisma.users.update({
+        data: model,
+        where: {
+            id: slug
+        }
+    })
+    if (permission && permission.attributes.length > 0) {
+        if (!(permission.attributes.length === 1 && permission.attributes[0] === '*')) {
+            model = permission.filter(model)
+        }
+    }
+
+    return json(model)
 }

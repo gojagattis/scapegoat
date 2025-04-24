@@ -14,13 +14,6 @@
     let grid = $state(true)
     let err = $state('')
 
-    $effect(() => {
-        if (grid || !grid) {
-            err = ''
-            model = {}
-        }
-    })
-
     //pagination
     let skip = 0
     let take = limit
@@ -45,21 +38,33 @@
     })
 
     async function add() {
-        err = ''
         Object.keys(model).forEach(k => {
             const meta = schema.find(s => s.name === k)
             if (meta.type === 'DateTime') {
                 model[k] = new Date(model[k])
             }
         })
-        let response = await mutate(resource, model)
+        let response = await mutate(`${resource}${model.id ? `/${model.id}` : ``}`, model, model.id ? 'PUT' : 'POST')
         if (response.ok) {
+            err = ''
+            model = {}
             refresh((await query(`${resource}?include=roles@name`)).json)
             grid = true
         } else {
             err = response.json.message
             document.forms[0].elements[0].focus()
         }
+    }
+
+    function edit(item) {
+        err = ''
+        model = {...item}
+        grid = false
+        Object.entries(model).forEach(([k, v]) => {
+            if (Date.parse(v)) {
+                model[k] = v.slice(0, -8) // format for display in datepicker
+            }
+        })
     }
 
     function orderBy(col) {
@@ -91,6 +96,8 @@
                     <th><span onclick={async () => await orderBy(col.name)}>{capitalize(col.name)}</span></th>
                 {/if}
             {/each}
+            <th></th>
+            <th></th>
         </tr>
         </thead>
         <tbody>
@@ -101,12 +108,19 @@
                         {#if col.type === 'DateTime'}
                             <td>{item[col.name] ? dayjs(item[col.name]).format('YYYY-MM-DD HH:mm') : ''}</td>
                         {:else if col.type === 'Boolean'}
-                            <td><input type="checkbox" onclick={e => e.preventDefault()} bind:checked={item[col.name]}></td>
+                            {#if item[col.name]}
+                                <td><i class="si-check"></i></td>
+                            {:else}
+                                <td><i class="si-x"></i></td>
+                            {/if}
+<!--                            <td><input type="checkbox" onclick={e => e.preventDefault()} bind:checked={item[col.name]}></td>-->
                         {:else }
                             <td>{item[col.name]}</td>
                         {/if}
                     {/if}
                 {/each}
+                <td><a href="#/" onclick={() => edit(item)}><i class="si-edit"></i></a></td>
+                <td><a href="#/" onclick={remove}><i class="si-trash"></i></a></td>
             </tr>
         {/each}
         </tbody>
