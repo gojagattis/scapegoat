@@ -6,13 +6,17 @@
     import {browser} from "$app/environment";
 
     const resource = page.url.pathname
-    const gridHide = $state(['id', 'password', 'creator'])
+    let gridHide = $state(browser && localStorage.getItem(resource) ? JSON.parse(localStorage.getItem(resource)) : ['id', 'password', 'creator', 'created'])
     const formHide = $state(['id', 'creator', 'created', 'updated'])
     let models = $state([])
     let model = $state({})
+    let columns = $state({})
     let schema = $state([])
     let grid = $state(true)
     let err = $state('')
+    let skip = 0
+    let take = limit
+    let order, sort
 
     $effect(() => {
         if (grid) {
@@ -23,14 +27,6 @@
             err = ''
         }
     })
-
-    //pagination
-    let skip = 0
-    let take = limit
-
-    //sort
-    let order = ''
-    let sort = ''
 
     function refresh(data) {
         models = data
@@ -45,6 +41,8 @@
         const response = (await query(`${resource}?schema=include&include=roles@name`)).json
         refresh(response.data)
         schema = response.schema
+        schema.forEach(s => columns[s.name] = true)
+        gridHide.forEach(col => columns[col] = false)
     })
 
     async function add() {
@@ -88,8 +86,15 @@
         }
     }
 
-    function orderBy(col) {
+    function show(field) {
+        gridHide = gridHide.includes(field) ? gridHide.filter(i => i !== field) : [...gridHide, field]
+        localStorage.setItem(resource, JSON.stringify(gridHide))
+    }
 
+    async function orderBy(col) {
+        order = col
+        sort = sort === undefined || sort === 'asc' ? 'desc' : 'asc'
+        refresh((await query(`${resource}?include=roles@name&order=${order}&sort=${sort}`)).json)
     }
 
 </script>
@@ -108,14 +113,31 @@
 }}></svelte:window>
 
 {#if grid}
-    <h3>{capitalize(resource)}</h3><button onclick={() => grid = false}>Add</button>
+    <nav>
+        <ul>
+            <li><h3>{capitalize(resource)}</h3><button onclick={() => grid = false}>Add</button></li>
+            <li><a href="#/">Columns ▾</a>
+                <ul>
+                    {#each schema as col}
+                        <li><label><input type="checkbox" onclick={() => show(col.name)} bind:checked={columns[col.name]}> {col.name}</label></li>
+                    {/each}
+                </ul>
+            </li>
+        </ul>
+    </nav>
     <span style="color: red;">{err}</span>
     <table>
         <thead>
         <tr>
             {#each schema as col}
                 {#if !gridHide.includes(col.name)}
-                    <th><span onclick={async () => await orderBy(col.name)}>{capitalize(col.name)}</span></th>
+                    <th>
+                        {#if col.kind === 'scalar'}
+                            <a href="#/" onclick={async () => await orderBy(col.name)}>{capitalize(col.name)}</a>
+                        {:else}
+                            {capitalize(col.name)}
+                        {/if}
+                    </th>
                 {/if}
             {/each}
             <th></th>
@@ -179,7 +201,7 @@
 {/if}
 
 <style>
-    h3 {
+    h3, nav {
         display: inline;
     }
 </style>

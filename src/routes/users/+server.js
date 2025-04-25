@@ -62,7 +62,7 @@ export async function GET(event) {
     const skip = params.skip ? parseInt(params.skip) : 0
     const take = params.take ? parseInt(params.take) : limit
     const order = params.order ?? 'created'
-    const sort = params.asc ? 'asc' : 'desc'
+    const sort = params.sort ? params.sort : 'desc'
     const clause = params.where ? params.where : null
     const creator = !!params.creator
     const token = claims(event)

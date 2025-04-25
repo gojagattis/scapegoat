@@ -81,16 +81,15 @@
     {#if authenticated}
         <nav>
             <ul>
+                <li><a href="/">Home</a></li>
                 {#each resources as resource}
                     <li><a href={resource}>{capitalize(resource)} </a></li>
                 {/each}
                 <li><a href="#/">Menu ▾</a>
                     <ul>
-                        <li><a href="#/">Menu 1</a></li>
-                        <li><a href="#/">Menu 2</a></li>
+                        <li><a href="#/" onclick={logout}>Logout</a></li>
                     </ul>
                 </li>
-                <li><a href="#/" onclick={logout}>Logout</a></li>
             </ul>
         </nav>
         {@render children()}
