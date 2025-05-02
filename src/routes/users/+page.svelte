@@ -14,9 +14,34 @@
     let schema = $state([])
     let grid = $state(true)
     let err = $state('')
-    let skip = 0
-    let take = limit
-    let order, sort
+    let clause = $state('')
+    let count = $state(0)
+    let skip = $state(0)
+    let take = $state(limit)
+    let next = $derived(count > skip + take)
+    let previous = $derived(skip !== 0)
+    let first = $derived(skip > 0)
+    let last = $derived(skip + take < count)
+    let order = $state('')
+    let sort = $state('desc')
+    let qs = $derived(`${resource}?include=roles@name${order ? `&order=${order}&sort=${sort}` : ``}${skip ? `&skip=${skip}&take=${take}` : ``}${clause ? `&where=${clause}` : ``}`)
+
+    async function fetch(direction) {
+        switch (direction) {
+            case 'next':
+                skip = skip + take
+                break
+            case 'previous':
+                skip = skip - take
+                break
+            case 'first':
+                skip = 0
+                break
+            case 'last':
+                skip = (Math.floor(count / take)) * take
+        }
+        refresh((await query(qs)).json)
+    }
 
     $effect(() => {
         if (grid) {
@@ -28,8 +53,9 @@
         }
     })
 
-    function refresh(data) {
-        models = data
+    function refresh(response) {
+        count = response.count
+        models = response.data
         models.forEach(model => {
             const roles = []
             model.roles.forEach(role => roles.push(role.name))
@@ -38,8 +64,8 @@
     }
 
     onMount(async () => {
-        const response = (await query(`${resource}?schema=include&include=roles@name`)).json
-        refresh(response.data)
+        const response = (await query(`${qs}&schema=include`)).json
+        refresh(response)
         schema = response.schema
         schema.forEach(s => columns[s.name] = true)
         gridHide.forEach(col => columns[col] = false)
@@ -56,7 +82,7 @@
         if (response.ok) {
             err = ''
             model = {}
-            refresh((await query(`${resource}?include=roles@name`)).json)
+            refresh((await query(qs)).json)
             grid = true
         } else {
             err = response.json.message
@@ -93,8 +119,15 @@
 
     async function orderBy(col) {
         order = col
-        sort = sort === undefined || sort === 'asc' ? 'desc' : 'asc'
-        refresh((await query(`${resource}?include=roles@name&order=${order}&sort=${sort}`)).json)
+        sort = sort === 'desc' ? 'asc' : 'desc'
+        refresh((await query(qs)).json)
+    }
+
+    function focus() {
+        grid = false
+        tick().then(() => {
+            document.forms[0].elements[0].focus()
+        })
     }
 
 </script>
@@ -105,17 +138,14 @@
     }
 }} on:keydown={e => {
     if (e.ctrlKey && e.key === '`') {
-        grid = false
-        tick().then(() => {
-            document.forms[0].elements[0].focus()
-        })
+    focus()
     }
 }}></svelte:window>
 
 {#if grid}
     <nav>
         <ul>
-            <li><h3>{capitalize(resource)}</h3><button onclick={() => grid = false}>Add</button></li>
+            <li><h3>{capitalize(resource)}</h3><button onclick={focus}>Add</button></li>
             <li><a href="#/">Columns ▾</a>
                 <ul>
                     {#each schema as col}
@@ -123,6 +153,8 @@
                     {/each}
                 </ul>
             </li>
+            <li><input type="text" placeholder="Search" bind:value={clause} onblur={async () => refresh((await query(`${qs}`)).json)}></li>
+            <li><button><i class="si-search" onclick={async () => refresh((await query(`${qs}`)).json)}></i></button></li>
         </ul>
     </nav>
     <span style="color: red;">{err}</span>
@@ -169,6 +201,23 @@
         {/each}
         </tbody>
     </table>
+    {#if count > 0}
+        {skip + 1}-{skip + take < count ? skip + take : count} of {count}
+    {:else}
+        0 Results
+    {/if}
+    {#if first}
+        <button onclick={() => fetch('first')}><i class="si-step-backward"></i></button>
+    {/if}
+    {#if previous}
+        <button onclick={() => fetch('previous')}><i class="si-chevron-left"></i></button>
+    {/if}
+    {#if next}
+        <button onclick={() => fetch('next')}><i class="si-chevron-right"></i></button>
+    {/if}
+    {#if last}
+        <button onclick={() => fetch('last')}><i class="si-step-forward"></i></button>
+    {/if}
 {:else}
     <h3>{model.id ? 'Edit' : 'Add'} {singularize(resource)}</h3>
     (* indicates required field)

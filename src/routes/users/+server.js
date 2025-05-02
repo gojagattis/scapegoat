@@ -59,8 +59,8 @@ export async function GET(event) {
         return json(metadata)
     }
 
-    const skip = params.skip ? parseInt(params.skip) : 0
-    const take = params.take ? parseInt(params.take) : limit
+    const skip = params.skip ? Number(params.skip) : 0
+    const take = params.take ? Number(params.take) : limit
     const order = params.order ?? 'created'
     const sort = params.sort ? params.sort : 'desc'
     const clause = params.where ? params.where : null
@@ -85,7 +85,7 @@ export async function GET(event) {
     }
 
     if (clause) {
-        ops = where(clause)
+        ops = where(clause, metadata)
     }
 
     const permission = event.locals.permission
@@ -121,25 +121,28 @@ export async function GET(event) {
     }
 
     log.debug(`Query: ${JSON.stringify(query, null, 2)}`)
-    let data = await prisma.users.findMany({
-        skip: skip,
-        take: take,
-        where: query,
-        [include]: value,
-        orderBy: {
-            [order]: sort
-        }
-    })
+    let [data, count] = await prisma.$transaction([
+        prisma.users.findMany({
+            skip: skip,
+            take: take,
+            where: query,
+            [include]: value,
+            orderBy: {
+                [order]: sort
+            }
+        }),
+      prisma.users.count({
+          where: query,
+      })
+    ])
     if (data && permission && permission.attributes.length > 0) {
         if (!(permission.attributes.length === 1 && permission.attributes[0] === '*')) {
             data = permission.filter(data)
         }
     }
-    if (schema === 'include') {
-        return json({
-            schema: metadata,
-            data: data
-        })
-    }
-    return json(data)
+    return json({
+        schema: schema === 'include' ? metadata : [],
+        count: count,
+        data: data
+    })
 }

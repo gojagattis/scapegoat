@@ -115,7 +115,23 @@ export const graph = (params) => {
     return query
 }
 
-export const where = (param) => {
+function convert(schema, col, data) {
+    const meta = schema.find(s => s.name === col)
+    if (meta) {
+        switch (meta.type) {
+            case 'Int':
+            case 'Float':
+                return Number(data)
+            case 'DateTime':
+                return new Date(data)
+            case 'Boolean':
+                return data === 'true'
+        }
+    }
+    return data
+}
+
+export const where = (param, schema) => {
     const ops = {
         OR: [],
         AND:[],
@@ -134,7 +150,7 @@ export const where = (param) => {
                 ops[op].push(
                   {
                       [term[0]]: {
-                          [term[1]]: term[2]
+                          [term[1]]: convert(schema, term[0], term[2])
                       }
                   }
                 )
@@ -145,7 +161,7 @@ export const where = (param) => {
         ops.AND.push(
           {
               [term[0]]: {
-                  [term[1]]: term[2]
+                  [term[1]]: convert(schema, term[0], term[2])
               }
           }
         )
