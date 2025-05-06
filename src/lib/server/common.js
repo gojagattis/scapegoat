@@ -131,6 +131,32 @@ function convert(schema, col, data) {
     return data
 }
 
+function compose(param, ops, op, schema) {
+    const term = param.split(',')
+    if (term.length === 5) {
+        const meta = schema.find(s => s.name === term[0])
+        ops[op].push(
+          {
+              [term[0]]: {
+                  [term[1]]: {
+                      [term[2]]: {
+                          [term[3]]: convert(cache.get(meta.type), term[2], term[4])
+                      }
+                  }
+              }
+          }
+        )
+    } else if (term.length === 3) {
+        ops[op].push(
+          {
+              [term[0]]: {
+                  [term[1]]: convert(schema, term[0], term[2])
+              }
+          }
+        )
+    }
+}
+
 export const where = (param, schema) => {
     const ops = {
         OR: [],
@@ -146,25 +172,11 @@ export const where = (param, schema) => {
             terms.shift()
             terms.forEach(t => {
                 t = t.endsWith(')') ? t.slice(0, -1) : t
-                const term = t.split(',')
-                ops[op].push(
-                  {
-                      [term[0]]: {
-                          [term[1]]: convert(schema, term[0], term[2])
-                      }
-                  }
-                )
+                compose(t, ops, op, schema)
             })
         })
     } else {
-        const term = param.split(',')
-        ops.AND.push(
-          {
-              [term[0]]: {
-                  [term[1]]: convert(schema, term[0], term[2])
-              }
-          }
-        )
+        compose(param, ops, 'AND', schema)
     }
     return ops
 }

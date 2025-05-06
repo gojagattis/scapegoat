@@ -24,7 +24,7 @@
     let last = $derived(skip + take < count)
     let order = $state('')
     let sort = $state('desc')
-    let qs = $derived(`${resource}?include=roles@name${order ? `&order=${order}&sort=${sort}` : ``}${skip ? `&skip=${skip}&take=${take}` : ``}${clause ? `&where=${clause}` : ``}`)
+    let qs = $derived(`${resource}?${order ? `&order=${order}&sort=${sort}` : ``}${skip ? `&skip=${skip}&take=${take}` : ``}${clause ? `&where=${clause}` : ``}`)
 
     async function fetch(direction) {
         switch (direction) {
@@ -56,18 +56,18 @@
     function refresh(response) {
         count = response.count
         models = response.data
-        models.forEach(model => {
-            const roles = []
-            model.roles.forEach(role => roles.push(role.name))
-            model.roles = roles
-        })
     }
 
     onMount(async () => {
         const response = (await query(`${qs}&schema=include`)).json
         refresh(response)
         schema = response.schema
-        schema.forEach(s => columns[s.name] = true)
+        schema.forEach(s => {
+            columns[s.name] = true
+            if (s.kind === 'object') {
+                gridHide.push(s.name)
+            }
+        })
         gridHide.forEach(col => columns[col] = false)
     })
 
@@ -149,7 +149,9 @@
             <li><a href="#/">Columns ▾</a>
                 <ul>
                     {#each schema as col}
-                        <li><label><input type="checkbox" onclick={() => show(col.name)} bind:checked={columns[col.name]}> {col.name}</label></li>
+                        {#if col.kind !== 'object' && col.name !== 'password'}
+                            <li><label><input type="checkbox" onclick={() => show(col.name)} bind:checked={columns[col.name]}> {col.name}</label></li>
+                        {/if}
                     {/each}
                 </ul>
             </li>
@@ -164,11 +166,7 @@
             {#each schema as col}
                 {#if !gridHide.includes(col.name)}
                     <th>
-                        {#if col.kind === 'scalar'}
-                            <a href="#/" onclick={async () => await orderBy(col.name)}>{capitalize(col.name)}</a>
-                        {:else}
-                            {capitalize(col.name)}
-                        {/if}
+                        <a href="#/" onclick={async () => await orderBy(col.name)}>{capitalize(col.name)}</a>
                     </th>
                 {/if}
             {/each}
