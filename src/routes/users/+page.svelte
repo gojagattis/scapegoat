@@ -5,7 +5,7 @@
     import { page } from '$app/state';
     import {browser} from "$app/environment";
 
-    const resource = page.url.pathname
+    const resource = page.url.pathname.slice(1)
     let gridHide = $state(browser && localStorage.getItem(resource) ? JSON.parse(localStorage.getItem(resource)) : ['id', 'password', 'creator', 'created'])
     const formHide = $state(['id', 'creator', 'created', 'updated'])
     let models = $state([])
@@ -25,6 +25,7 @@
     let order = $state('')
     let sort = $state('desc')
     let qs = $derived(`${resource}?${order ? `&order=${order}&sort=${sort}` : ``}${skip ? `&skip=${skip}&take=${take}` : ``}${clause ? `&where=${clause}` : ``}`)
+    let schemas = $state({})
 
     async function fetch(direction) {
         switch (direction) {
@@ -59,9 +60,10 @@
     }
 
     onMount(async () => {
-        const response = (await query(`${qs}&schema=include`)).json
+        const response = (await query(`${qs}&schema=true`)).json
         refresh(response)
-        schema = response.schema
+        schemas = response.schemas
+        schema = schemas[resource]
         schema.forEach(s => {
             columns[s.name] = true
             if (s.kind === 'object') {
@@ -138,7 +140,7 @@
     }
 }} on:keydown={e => {
     if (e.ctrlKey && e.key === '`') {
-    focus()
+        focus()
     }
 }}></svelte:window>
 

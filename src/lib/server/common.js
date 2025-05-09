@@ -18,7 +18,7 @@ export const prepare = (obj, event) => {
         const [key, value] = entry
         if (value && typeof value === 'object') {
             if (key === 'create') {
-                value.owner = (claims(event)).sub
+                value.creator = (claims(event)).sub
             }
             prepare(value, event)
         }

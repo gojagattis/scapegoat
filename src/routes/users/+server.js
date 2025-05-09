@@ -52,13 +52,9 @@ export async function POST(event) {
 }
 
 export async function GET(event) {
+    const resource = event.url.pathname.split('/')[1]
     const params = Object.fromEntries(event.url.searchParams)
-    const metadata = cache.get(event.url.pathname.split('/')[1])
-    const schema = params.schema ? params.schema : null
-    if (schema === 'only') {
-        return json(metadata)
-    }
-
+    const schema = cache.get(resource)
     const skip = params.skip ? Number(params.skip) : 0
     const take = params.take ? Number(params.take) : limit
     const order = params.order ?? 'created'
@@ -66,7 +62,7 @@ export async function GET(event) {
     const clause = params.where ? params.where : null
     const creator = !!params.creator
     const token = claims(event)
-    const userRel = metadata.find(s => s.kind === 'object' && s.type === 'users' && !s.isList)
+    const userRel = schema.find(s => s.kind === 'object' && s.type === 'users' && !s.isList)
     let fields
     let include = 'include'
     let value = {}
@@ -75,7 +71,7 @@ export async function GET(event) {
         userCol = userRel.relationFromFields[0]
         userRef = userRel.relationToFields[0]
     }
-
+    const schemas = {}
     let query = {}
     const filter = {}
     let ops = {
@@ -85,7 +81,7 @@ export async function GET(event) {
     }
 
     if (clause) {
-        ops = where(clause, metadata)
+        ops = where(clause, schema)
     }
 
     const permission = event.locals.permission
@@ -140,8 +136,16 @@ export async function GET(event) {
             data = permission.filter(data)
         }
     }
+    if (params.schema) {
+        schemas[resource] = schema
+        schema.forEach(m => {
+            if (m.kind === 'object') {
+                schemas[m.type] = cache.get(m.type)
+            }
+        })
+    }
     return json({
-        schema: schema === 'include' ? metadata : [],
+        schemas: schemas,
         count: count,
         data: data
     })
