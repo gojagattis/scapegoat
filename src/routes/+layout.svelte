@@ -75,6 +75,7 @@
     <title>Scapegoat</title>
     <link rel="stylesheet" href="/classless.css">
     <link rel="stylesheet" href="/siimple-icons.css">
+    <link rel="stylesheet" href="/tabbox.css">
 </svelte:head>
 
 {#if browser}

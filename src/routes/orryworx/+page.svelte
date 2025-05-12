@@ -6,7 +6,7 @@
     import {browser} from "$app/environment";
 
     const resource = page.url.pathname.slice(1)
-    let gridHide = $state(browser && localStorage.getItem(resource) ? JSON.parse(localStorage.getItem(resource)) : ['id', 'password', 'creator', 'created'])
+    let gridHide = $state(browser && localStorage.getItem(resource) ? JSON.parse(localStorage.getItem(resource)) : ['id', 'creator', 'created'])
     const formHide = $state(['id', 'creator', 'created', 'updated'])
     let models = $state([])
     let model = $state({})
@@ -125,7 +125,13 @@
     }
 
     async function save(rel) {
-
+        const response = await query(`${resource}/${id}`, 'DELETE')
+        if (response.ok) {
+            err = ''
+            models = models.toSpliced(models.findIndex(m => m.id === id), 1)
+        } else {
+            err = response.json.message
+        }
     }
 
     function show(field) {
@@ -165,7 +171,7 @@
             <li><a href="#/">Columns ▾</a>
                 <ul>
                     {#each schema as col}
-                        {#if col.kind !== 'object' && col.name !== 'password'}
+                        {#if col.kind !== 'object'}
                             <li><label><input type="checkbox" onclick={() => show(col.name)} bind:checked={columns[col.name]}> {col.name}</label></li>
                         {/if}
                     {/each}
@@ -278,11 +284,7 @@
                     {#if col.type === 'Boolean'}
                         <input type="checkbox" bind:checked={model[col.name]}><p></p>
                     {:else if col.type === 'String'}
-                        {#if col.name === 'password'}
-                            <input type="password" bind:value={model[col.name]}>
-                        {:else}
-                            <input type="text" bind:value={model[col.name]}>
-                        {/if}
+                        <input type="text" bind:value={model[col.name]}>
                     {:else if col.type === 'Int'}
                         <input type="number" bind:value={model[col.name]}>
                     {:else if col.type === 'Float'}

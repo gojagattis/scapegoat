@@ -1,8 +1,7 @@
 import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
-import bcrypt from "bcrypt";
-import { sanitize, prepare, graph, cache } from '$lib/server/common.js';
+import { graph, cache } from '$lib/server/common.js';
 
 export async function GET(event) {
     const slug = event.params.slug
@@ -53,9 +52,6 @@ export async function DELETE(event) {
     if (!model) {
         error(404, 'Not Found')
     }
-    if (slug === event.locals.claims.sub) {
-        error(403, 'Forbidden')
-    }
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
         if (slug !== event.locals.claims.sub) {
@@ -89,14 +85,7 @@ export async function PUT(event) {
         }
     }
     const data = await event.request.json();
-    const system = ['id', 'creator', 'created', 'updated', 'password']
-    if (data.password && data.password.trim()) { //hash password if it is plaintext
-        try {
-            await bcrypt.getRounds(data.password) //will fail for plain text
-        } catch (e) {
-            model.password = await bcrypt.hash(data.password, 10)
-        }
-    }
+    const system = ['id', 'creator', 'created', 'updated']
     const schema = cache.get(event.url.pathname.split('/')[1])
     schema.forEach(s => {
         if (s.kind === 'scalar' && !system.includes(s.name) && data.hasOwnProperty(s.name)) {

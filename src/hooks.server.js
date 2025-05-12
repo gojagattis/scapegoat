@@ -107,6 +107,7 @@ export async function handle({ event, resolve }) {
         }
     }
 
+    event.locals.resource = event.url.pathname.split('/')[1]
     const response = await resolve(event);
     const after = Date.now()
     log.debug(`${event.request.method} ${event.url.pathname}  ${after - before}ms`);

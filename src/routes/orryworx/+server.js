@@ -3,7 +3,6 @@ import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
 import { claims, cache, where, graph } from '$lib/server/common.js';
 import {limit} from "$lib/common";
-import bcrypt from "bcrypt";
 
 export async function POST(event) {
     const data = await event.request.json();
@@ -18,24 +17,6 @@ export async function POST(event) {
     })
     if (errors.length) {
         error(400, `Required fields: ${errors.join(', ')}`)
-    }
-    if (data.password) { //hash password if it is plaintext
-        try {
-            await bcrypt.getRounds(data.password) //will fail for plain text
-        } catch (e) {
-            data.password = await bcrypt.hash(data.password, 10)
-        }
-    }
-    const roles = await prisma.roles.findMany({
-        where: {
-            default: true
-        },
-        select: {
-            id: true
-        }
-    })
-    data['roles'] = {
-        connect: roles
     }
     let model = await prisma[event.locals.resource].create({
         data: data,
