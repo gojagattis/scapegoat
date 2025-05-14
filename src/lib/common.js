@@ -30,6 +30,9 @@ export const token = () => {
     return null
 }
 
+export const claims = () => {
+    return JSON.parse(atob(token().split('.')[1]))
+}
 
 export const query = async (endpoint, method = 'GET') => {
     const response = await fetch(endpoint, {

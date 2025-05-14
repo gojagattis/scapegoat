@@ -27,6 +27,11 @@
     let sort = $state('desc')
     let qs = $derived(`${resource}?${order ? `&order=${order}&sort=${sort}` : ``}${skip ? `&skip=${skip}&take=${take}` : ``}${clause ? `&where=${clause}` : ``}`)
     let schemas = $state({})
+    let checked = 'checked'
+
+    function once() {
+        checked = ''
+    }
 
     async function fetch(direction) {
         switch (direction) {
@@ -50,6 +55,7 @@
             err = ''
             model = {}
             relations = false
+            checked = 'checked'
         }
         if (!grid) {
             err = ''
@@ -76,13 +82,12 @@
     })
 
     async function add() {
-        Object.keys(model).forEach(k => {
-            const meta = schema.find(s => s.name === k)
-            if (meta.type === 'DateTime') {
-                model[k] = model[k] ? new Date(model[k]) : null
+        schema.filter(s => s.type === 'DateTime').forEach(d => {
+            if (model[d.name]) {
+                model[d.name] = new Date(model[d.name])
             }
         })
-        const response = await mutate(`${resource}${model.id ? `/${model.id}` : ``}`, model, model.id ? 'PUT' : 'POST')
+        const response = await mutate(`${resource}/${model.id ?? ''}`, model, model.id ? 'PUT' : 'POST')
         if (response.ok) {
             err = ''
             model = {}
@@ -94,38 +99,77 @@
         }
     }
 
-    function edit(item, associations = false) {
+    async function edit(item, associations = false) {
         err = ''
-        model = {...item}
-        grid = false
-        Object.keys(model).forEach(k => {
-            const meta = schema.find(s => s.name === k)
-            if (meta.type === 'DateTime' && model[k]) {
-                model[k] = model[k].slice(0, -14) // format for display in datepicker
-            }
-        })
+        model = { ...item }
         relations = associations
         if (relations) {
+            const map = {}
             schema.forEach(s => {
                 if (s.kind === 'object') {
-                    model[s.name] = s.isList ? [] : {}
+                    map[s.name] = s.type
                 }
             })
+            if (map) {
+                model = (await query(`${resource}/${model.id}?include=${Object.keys(map).join(',')}`)).json
+                Object.entries(map).forEach(([k, v]) => {
+                    if (model[k] === null) {
+                        model[k] = schema.find(s => s.name === k).isList ? [] : {}
+                    }
+                    schemas[v].filter(s => s.type === 'DateTime').forEach(d => {
+                        if (model[k][d.name]) {
+                            model[k][d.name] = model[k][d.name].slice(0, -14)
+                        }
+                    })
+                })
+            }
         }
+        schema.filter(s => s.type === 'DateTime').forEach(d => {
+            if (model[d.name]) {
+                model[d.name] = model[d.name].slice(0, -14)
+            }
+        })
+        grid = false
     }
 
-    async function remove(id) {
-        const response = await query(`${resource}/${id}`, 'DELETE')
+    async function remove(id, name = null, route = resource) {
+        const response = await query(`${route}/${id}`, 'DELETE')
         if (response.ok) {
             err = ''
-            models = models.toSpliced(models.findIndex(m => m.id === id), 1)
+            if (route === resource) {
+                models = models.toSpliced(models.findIndex(m => m.id === id), 1)
+            } else if (!Array.isArray(model[name])) {
+                model[name] = {}
+            }
         } else {
             err = response.json.message
         }
     }
 
-    async function save(rel) {
-
+    async function save(name, type) {
+        schemas[type].filter(s => s.type === 'DateTime').forEach(d => {
+            if (model[name][d.name]) {
+                model[name][d.name] = new Date(model[name][d.name])
+            }
+        })
+        const ref = schemas[type].find(s => s.kind === 'object' && s.type === resource && !s.isList && s.isRequired)
+        if (ref) {
+            model[name][ref.relationFromFields] = model.id
+        }
+        const response = await mutate(`${type}/${model[name]['id'] ?? ''}`, model[name], model[name]['id'] ? 'PUT' : 'POST');
+        if (response.ok) {
+            if (!Array.isArray(model[name])) {
+                model[name] = response.json
+                schemas[type].filter(s => s.type === 'DateTime').forEach(d => {
+                    if (model[name][d.name]) {
+                        model[name][d.name] = model[name][d.name].slice(0, -14)
+                    }
+                })
+            }
+            err = '';
+        } else {
+            err = response.json.message
+        }
     }
 
     function show(field) {
@@ -237,10 +281,11 @@
     <div class="tabs">
     {#each schema as rel}
         {#if rel.kind === 'object' && !(schemas[rel.type].find(s => s.type === resource)).isList}
-            <input type="radio" name="tabs" id={rel.name} checked>
+            <input type="radio" name="tabs" id={rel.name} {checked}>
             <label for={rel.name}>{capitalize(rel.name)}</label>
             <div class="tab">
-                <h4>Tab One Content</h4>
+                (* indicates required field)
+                <br><span style="color: red;">{err}</span>
                 <form>
                     {#each schemas[rel.type] as col}
                         {#if !(schemas[rel.type].find(s => s.relationFromFields &&
@@ -260,10 +305,12 @@
                             {/if}
                         {/if}
                     {/each}
-                    <button onclick={() => save(rel.name)}>Save</button>
+                    <button onclick={() => save(rel.name, rel.type)}>Save</button>
+                    <button onclick={() => remove(model[rel.name]['id'], rel.name, rel.type)}>Delete</button>
                     <button onclick={() => grid = true}>Cancel</button>
                 </form>
             </div>
+            {void once() ?? ""}
         {/if}
     {/each}
     </div>
