@@ -11,7 +11,7 @@ export async function POST(event) {
     const schema = cache.get(event.url.pathname.split('/')[1])
     const errors = []
     schema.forEach(s => {
-        if (s.kind === 'scalar' && s.isRequired && !s.hasDefaultValue && (!data.hasOwnProperty(s.name) || !data[s.name].trim())) {
+        if (s.kind === 'scalar' && s.isRequired && !s.hasDefaultValue && (!data.hasOwnProperty(s.name) || (s.type === 'String' && !data[s.name].trim()))) {
             errors.push(s.name)
         }
     })

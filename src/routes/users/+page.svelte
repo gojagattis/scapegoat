@@ -142,8 +142,16 @@
         grid = false
     }
 
-    async function remove(id, name = null, route = resource) {
-        const response = await query(`${route}/${id}`, 'DELETE')
+    async function remove(id, name = null, route = resource, index = null) {
+        if (index !== null && !id) {
+            model[name].splice(index, 1)
+            if (model[name].length === 0) {
+                model[name].push({})
+            }
+            key++
+            return
+        }
+        const response = await query(`${route}/${id}`, 'DELETE');
         if (response.ok) {
             err = ''
             if (route === resource) {
@@ -299,7 +307,7 @@
     <div class="tabs">
     {#each schema as rel}
         {#if rel.kind === 'object' && !(schemas[rel.type].find(s => s.type === resource)).isList}
-            <input type="radio" name="tabs" id={rel.name} checked>
+            <input type="radio" name="tabs" id={rel.name} {checked}>
             <label onclick={() => key++} for={rel.name}>{capitalize(rel.name)}</label>
             <div class="tab">
                 (* indicates required field)
@@ -311,29 +319,31 @@
                     {#if rel.isList}
                         {#each model[rel.name] as item, i}
                             <br>
-                            <form>
-                                {#each schemas[rel.type] as col}
-                                    {#if !(schemas[rel.type].find(s => s.relationFromFields &&
-                                      s.relationFromFields.includes(col.name))) && col.type !== resource
-                                    && !formHide.includes(col.name)}
-                                        {capitalize(col.name)}{col.isRequired && col.type !== 'Boolean' ? '*' : ''} :
-                                        {#if col.type === 'Boolean'}
-                                            <input type="checkbox" bind:checked={model[rel.name][i][col.name]}><p></p>
-                                        {:else if col.type === 'String'}
-                                            <input type="text" bind:value={model[rel.name][i][col.name]}>
-                                        {:else if col.type === 'Int'}
-                                            <input type="number" bind:value={model[rel.name][i][col.name]}>
-                                        {:else if col.type === 'Float'}
-                                            <input type="number" bind:value={model[rel.name][i][col.name]}>
-                                        {:else if col.type === 'DateTime'}
-                                            <input type="date" bind:value={model[rel.name][i][col.name]}>
+                            <fieldset>
+                                <form>
+                                    {#each schemas[rel.type] as col}
+                                        {#if !(schemas[rel.type].find(s => s.relationFromFields &&
+                                          s.relationFromFields.includes(col.name))) && col.type !== resource
+                                        && !formHide.includes(col.name)}
+                                            {capitalize(col.name)}{col.isRequired && col.type !== 'Boolean' ? '*' : ''} :
+                                            {#if col.type === 'Boolean'}
+                                                <input type="checkbox" bind:checked={model[rel.name][i][col.name]}><p></p>
+                                            {:else if col.type === 'String'}
+                                                <input type="text" bind:value={model[rel.name][i][col.name]}>
+                                            {:else if col.type === 'Int'}
+                                                <input type="number" bind:value={model[rel.name][i][col.name]}>
+                                            {:else if col.type === 'Float'}
+                                                <input type="number" bind:value={model[rel.name][i][col.name]}>
+                                            {:else if col.type === 'DateTime'}
+                                                <input type="date" bind:value={model[rel.name][i][col.name]}>
+                                            {/if}
                                         {/if}
-                                    {/if}
-                                {/each}
-                                <button onclick={() => save(model[rel.name][i], rel.name, rel.type, [i])}>Save</button>
-                                <button onclick={() => remove(model[rel.name][i]['id'], rel.name, rel.type)}>Delete</button>
-                                <button onclick={() => grid = true}>Cancel</button>
-                            </form>
+                                    {/each}
+                                    <button onclick={() => save(model[rel.name][i], rel.name, rel.type, [i])}>Save</button>
+                                    <button onclick={() => remove(model[rel.name][i]['id'], rel.name, rel.type, i)}>Delete</button>
+                                    <button onclick={() => grid = true}>Cancel</button>
+                                </form>
+                            </fieldset>
                         {/each}
                     {:else}
                         <br>
