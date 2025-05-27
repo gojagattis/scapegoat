@@ -89,26 +89,17 @@ export async function PUT(event) {
         }
     }
     const data = await event.request.json();
-    const system = ['id', 'creator', 'created', 'updated', 'password']
     if (data.password && data.password.trim()) { //hash password if it is plaintext
         try {
             await bcrypt.getRounds(data.password) //will fail for plain text
         } catch (e) {
-            model.password = await bcrypt.hash(data.password, 10)
+            data.password = await bcrypt.hash(data.password, 10)
         }
     }
-    const schema = cache.get(event.url.pathname.split('/')[1])
-    schema.forEach(s => {
-        if (s.kind === 'scalar' && !system.includes(s.name) && data.hasOwnProperty(s.name)) {
-            if (s.type === 'String' && data[s.name]) {
-                data[s.name] = data[s.name].trim()
-            }
-            model[s.name] = data[s.name]
-        }
-    })
+    sanitize(data)
 
     model = await prisma[resource].update({
-        data: model,
+        data: data,
         where: {
             id: slug
         }

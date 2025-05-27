@@ -28,6 +28,8 @@
     let sort = $state('desc')
     let qs = $derived(`${resource}?${order ? `&order=${order}&sort=${sort}` : ``}${skip ? `&skip=${skip}&take=${take}` : ``}${clause ? `&where=${clause}` : ``}`)
     let schemas = $state({})
+    let master = $state({})
+    let connect = $state({})
     let checked = 'checked'
 
     function once() {
@@ -86,23 +88,47 @@
             }
         })
         gridHide.forEach(col => columns[col] = false)
+        for (const [k, v] of Object.entries(schemas)) {
+            if (k !== resource && v.find(s => s.type === resource).isList) {
+                master[k] = (await query(k)).json.data
+            }
+        }
     })
 
-    async function add() {
-        schema.filter(s => s.type === 'DateTime').forEach(d => {
-            if (model[d.name]) {
-                model[d.name] = new Date(model[d.name])
+    async function add(rel = null) {
+        const data = {}
+        if (!rel) {
+            schema.filter(s => s.type === 'DateTime').forEach(d => {
+                if (model[d.name]) {
+                    model[d.name] = new Date(model[d.name])
+                }
+            })
+        } else {
+            data[rel] = {
+                disconnect: [],
+                connect: []
             }
-        })
-        const response = await mutate(`${resource}/${model.id ?? ''}`, model, model.id ? 'PUT' : 'POST')
+            Object.entries(connect[rel]).forEach(([k, v]) => {
+                if (v) {
+                    data[rel].connect.push({ id: k });
+                } else {
+                    data[rel].disconnect.push({id: k})
+                }
+            })
+        }
+        const response = await mutate(`${resource}/${model.id ?? ''}`, !!data ?? model, model.id ? 'PUT' : 'POST');
         if (response.ok) {
             err = ''
-            model = {}
-            refresh((await query(qs)).json)
-            grid = true
+            if (rel === null) {
+                model = {}
+                refresh((await query(qs)).json)
+                grid = true
+            }
         } else {
             err = response.json.message
-            document.forms[0].elements[0].focus()
+            if (rel === null) {
+                document.forms[0].elements[0].focus()
+            }
         }
     }
 
@@ -126,6 +152,10 @@
                     if (Array.isArray(model[k]) && model[k].length === 0) {
                         model[k].push({})
                     }
+                    if ((schema.find(p => p.name === k)).isList && (schemas[v].find(s => s.type === resource)).isList) {
+                        connect[k] = {}
+                        master[v].forEach(m => connect[k][m.id] = !!model[k].find(s => s.id === m.id))
+                    }
                     schemas[v].filter(s => s.type === 'DateTime').forEach(d => {
                         if (model[k][d.name]) {
                             model[k][d.name] = model[k][d.name].slice(0, -14)
@@ -143,13 +173,16 @@
     }
 
     async function remove(id, name = null, route = resource, index = null) {
+        if (!id) {
+            return
+        }
         if (index !== null && !id) {
-            model[name].splice(index, 1)
+            model[name].splice(index, 1);
             if (model[name].length === 0) {
                 model[name].push({})
             }
-            key++
-            return
+            key++;
+            return;
         }
         const response = await query(`${route}/${id}`, 'DELETE');
         if (response.ok) {
@@ -258,6 +291,7 @@
             {/each}
             <th></th>
             <th></th>
+            <th></th>
         </tr>
         </thead>
         <tbody>
@@ -306,17 +340,17 @@
 {:else if relations}
     <div class="tabs">
     {#each schema as rel}
-        {#if rel.kind === 'object' && !(schemas[rel.type].find(s => s.type === resource)).isList}
+        {#if rel.kind === 'object'}
             <input type="radio" name="tabs" id={rel.name} {checked}>
             <label onclick={() => key++} for={rel.name}>{capitalize(rel.name)}</label>
             <div class="tab">
                 (* indicates required field)
-                {#if model[rel.name][0] && Object.keys(model[rel.name][0]).includes('id')}
+                {#if model[rel.name][0] && Object.keys(model[rel.name][0]).includes('id') && !(schemas[rel.type].find(s => s.type === resource)).isList}
                     <button onclick={() => model[rel.name].unshift({})}>Add another</button>
                 {/if}
                 <br><span style="color: red;">{err}</span>
                 {#key key}
-                    {#if rel.isList}
+                    {#if rel.isList && !(schemas[rel.type].find(s => s.type === resource)).isList}
                         {#each model[rel.name] as item, i}
                             <br>
                             <fieldset>
@@ -345,7 +379,7 @@
                                 </form>
                             </fieldset>
                         {/each}
-                    {:else}
+                    {:else if !rel.isList && !(schemas[rel.type].find(s => s.type === resource)).isList}
                         <br>
                         <form>
                             {#each schemas[rel.type] as col}
@@ -370,10 +404,48 @@
                             <button onclick={() => remove(model[rel.name]['id'], rel.name, rel.type)}>Delete</button>
                             <button onclick={() => grid = true}>Cancel</button>
                         </form>
+                    {:else if rel.isList && (schemas[rel.type].find(s => s.type === resource)).isList}
+                        <br>
+                        <table>
+                            <thead>
+                            <tr>
+                                <th></th>
+                                {#each schemas[rel.type] as col}
+                                    {#if !gridHide.includes(col.name) && col.kind !== 'object' && col.name !== 'updated'}
+                                        <th>{capitalize(col.name)}</th>
+                                    {/if}
+                                {/each}
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {#each master[rel.type] as item}
+                                <tr>
+                                    <td><input type="checkbox" bind:checked={connect[rel.name][item.id]}></td>
+                                    {#each schemas[rel.type] as col}
+                                        {#if !gridHide.includes(col.name) && col.name !== 'updated'}
+                                            {#if col.type === 'DateTime'}
+                                                <td>{item[col.name] ? item[col.name].endsWith('T00:00:00.000Z') ? dayjs(item[col.name]).format('YYYY-MM-DD') : dayjs(item[col.name]).format('YYYY-MM-DD HH:mm') : ''}</td>
+                                            {:else if col.type === 'Boolean'}
+                                                {#if item[col.name]}
+                                                    <td><i class="si-check"></i></td>
+                                                {:else}
+                                                    <td><i class="si-x"></i></td>
+                                                {/if}
+                                            {:else }
+                                                <td>{item[col.name]}</td>
+                                            {/if}
+                                        {/if}
+                                    {/each}
+                                </tr>
+                            {/each}
+                            </tbody>
+                        </table>
+                        <button onclick={() => add(rel.name)}>Save</button>
+                        <button onclick={() => grid = true}>Cancel</button>
                     {/if}
                 {/key}
             </div>
-            {void once() ?? ""}
+            {void once() ?? ''}
         {/if}
     {/each}
     </div>

@@ -15,10 +15,40 @@ model users {
     username            String @unique
     password            String
     active              Boolean @default(true)
+    serial              Int? @unique
+    expiry              DateTime? @unique
+    ratio               Float? @unique
+    description         String?
     creator             String?
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
     roles               roles[]
+    profile             profiles?
+    addresses           addresses[]
+}
+
+model addresses {
+    id                  String @id @default(cuid(2))
+    userRef             users @relation(fields: [user], references: [id], onDelete: Cascade)
+    user                String
+    street              String
+    city                String
+    zip                 Int
+    creator             String
+    created             DateTime @default(now())
+    updated             DateTime @default(now()) @updatedAt
+}
+
+model profiles {
+    id                  String @id @default(cuid(2))
+    userRef             users @relation(fields: [user], references: [id], onDelete: Cascade)
+    user                String @unique
+    firstName           String
+    lastName            String
+    birthDate           DateTime
+    creator             String
+    created             DateTime @default(now())
+    updated             DateTime @default(now()) @updatedAt
 }
 
 model roles {

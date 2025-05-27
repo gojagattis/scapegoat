@@ -1,13 +1,19 @@
 import nodemailer from "nodemailer";
 import NodeCache from "node-cache";
 
+export const reserved = ['creator', 'created', 'updated', 'create', 'createMany',
+    'connectOrCreate', 'updateMany', 'update', 'deleteMany', 'delete', 'upsert']
+
 export const cache = new NodeCache()
 
-export const sanitize = (data, keys) => {
+export const sanitize = (data, nested = false) => {
+    if (!nested) {
+        delete data.id
+    }
     for (let i in data) {
         if (typeof data[i] === 'object') {
-            sanitize(data[i], keys)
-        } else if (keys.includes(i)) {
+            sanitize(data[i], true)
+        } else if (reserved.includes(i)) {
             delete data[i]
         }
     }
