@@ -83,7 +83,7 @@
         schema = schemas[resource]
         schema.forEach(s => {
             columns[s.name] = true
-            if (s.kind === 'object') {
+            if (s.kind === 'object' || schema.filter(f => f.relationFromFields && f.relationFromFields.includes(s.name)).length > 0) {
                 gridHide.push(s.name)
             }
         })
@@ -96,7 +96,7 @@
     })
 
     async function add(rel = null) {
-        const data = {}
+        let data
         if (!rel) {
             schema.filter(s => s.type === 'DateTime').forEach(d => {
                 if (model[d.name]) {
@@ -104,19 +104,28 @@
                 }
             })
         } else {
-            data[rel] = {
-                disconnect: [],
-                connect: []
-            }
-            Object.entries(connect[rel]).forEach(([k, v]) => {
-                if (v) {
-                    data[rel].connect.push({ id: k });
-                } else {
-                    data[rel].disconnect.push({id: k})
+            data = {}
+            if (Array.isArray(model[rel])) {
+                data[rel] = {
+                    disconnect: [],
+                    connect: []
                 }
-            })
+                Object.entries(connect[rel]).forEach(([k, v]) => {
+                    if (v) {
+                        data[rel].connect.push({ id: k });
+                    } else {
+                        data[rel].disconnect.push({id: k})
+                    }
+                })
+            } else {
+                data[rel] = {
+                    connect: {
+                        id: model[rel].id
+                    }
+                }
+            }
         }
-        const response = await mutate(`${resource}/${model.id ?? ''}`, !!data ?? model, model.id ? 'PUT' : 'POST');
+        const response = await mutate(`${resource}/${model.id ?? ''}`, data ?? model, model.id ? 'PUT' : 'POST');
         if (response.ok) {
             err = ''
             if (rel === null) {
@@ -152,9 +161,11 @@
                     if (Array.isArray(model[k]) && model[k].length === 0) {
                         model[k].push({})
                     }
-                    if ((schema.find(p => p.name === k)).isList && (schemas[v].find(s => s.type === resource)).isList) {
+                    if ((schemas[v].find(s => s.type === resource)).isList) {
                         connect[k] = {}
-                        master[v].forEach(m => connect[k][m.id] = !!model[k].find(s => s.id === m.id))
+                        if (Array.isArray(model[k])) {
+                            master[v].forEach(m => connect[k][m.id] = !!model[k].find(s => s.id === m.id))
+                        }
                     }
                     schemas[v].filter(s => s.type === 'DateTime').forEach(d => {
                         if (model[k][d.name]) {
@@ -268,7 +279,7 @@
             <li><a href="#/">Columns ▾</a>
                 <ul>
                     {#each schema as col}
-                        {#if col.kind !== 'object' && col.name !== 'password'}
+                        {#if col.kind !== 'object' && col.name !== 'password' && schema.filter(f => f.relationFromFields && f.relationFromFields.includes(col.name)).length === 0}
                             <li><label><input type="checkbox" onclick={() => show(col.name)} bind:checked={columns[col.name]}> {col.name}</label></li>
                         {/if}
                     {/each}
@@ -404,7 +415,7 @@
                             <button onclick={() => remove(model[rel.name]['id'], rel.name, rel.type)}>Delete</button>
                             <button onclick={() => grid = true}>Cancel</button>
                         </form>
-                    {:else if rel.isList && (schemas[rel.type].find(s => s.type === resource)).isList}
+                    {:else if (schemas[rel.type].find(s => s.type === resource)).isList}
                         <br>
                         <table>
                             <thead>
@@ -420,7 +431,11 @@
                             <tbody>
                             {#each master[rel.type] as item}
                                 <tr>
-                                    <td><input type="checkbox" bind:checked={connect[rel.name][item.id]}></td>
+                                    {#if rel.isList}
+                                        <td><input type="checkbox" bind:checked={connect[rel.name][item.id]}></td>
+                                    {:else}
+                                        <td><input style="display: initial" type="radio" value={item.id} bind:group={model[rel.name].id}></td>
+                                    {/if}
                                     {#each schemas[rel.type] as col}
                                         {#if !gridHide.includes(col.name) && col.name !== 'updated'}
                                             {#if col.type === 'DateTime'}
@@ -476,7 +491,7 @@
                 </label>
             {/if}
         {/each}
-        <button onclick={add}>{model.id ? 'Edit' : 'Add'}</button>
+        <button onclick={() => add()}>{model.id ? 'Edit' : 'Add'}</button>
         <button onclick={() => grid = true}>Cancel</button>
     </form>
 {/if}

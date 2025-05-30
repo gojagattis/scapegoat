@@ -25,6 +25,8 @@ model users {
     roles               roles[]
     profile             profiles?
     addresses           addresses[]
+    goal                goals? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+    goalId              String?
 }
 
 model addresses {
@@ -49,6 +51,16 @@ model profiles {
     creator             String
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
+}
+
+model goals {
+    id                  String @id @default(cuid(2))
+    name                String @unique
+    creator             String
+    created             DateTime @default(now())
+    updated             DateTime @default(now()) @updatedAt
+
+    users               users[]
 }
 
 model roles {
