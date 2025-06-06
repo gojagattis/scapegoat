@@ -19,10 +19,10 @@ model users {
     expiry              DateTime? @unique
     ratio               Float? @unique
     description         String?
+    roles               roles[]
     creator             String?
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
-    roles               roles[]
     profile             profiles?
     addresses           addresses[]
     goal                goals? @relation(fields: [goalId], references: [id], onDelete: SetNull)
