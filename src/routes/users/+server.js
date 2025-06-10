@@ -26,20 +26,23 @@ export async function POST(event) {
             data.password = await bcrypt.hash(data.password, 10)
         }
     }
-    const roles = await prisma.roles.findMany({
-        where: {
-            default: true
-        },
-        select: {
-            id: true
+    if (!data.roles) {
+        const roles = await prisma.roles.findMany({
+            where: {
+                default: true
+            },
+            select: {
+                id: true
+            }
+        })
+        data.roles = {
+            connect: roles
         }
-    })
-    data['roles'] = {
-        connect: roles
     }
+
     let model = await prisma[event.locals.resource].create({
         data: data,
-    })
+    });
 
     const permission = event.locals.permission
     if (model && permission && permission.attributes.length > 0) {

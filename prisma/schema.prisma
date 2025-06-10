@@ -20,13 +20,13 @@ model users {
     ratio               Float? @unique
     description         String?
     roles               roles[]
+    goal                goals? @relation(fields: [goalId], references: [id], onDelete: SetNull)
+    goalId              String?
     creator             String?
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
     profile             profiles?
     addresses           addresses[]
-    goal                goals? @relation(fields: [goalId], references: [id], onDelete: SetNull)
-    goalId              String?
 }
 
 model addresses {
