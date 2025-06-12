@@ -24,3 +24,11 @@ server.log
 /prisma/dev.db*
 /prisma/migrations
 /.idea
+
+/src/routes/addresses
+/src/routes/goals
+/src/routes/interests
+/src/routes/permissions
+/src/routes/profiles
+/src/routes/roles
+/src/routes/titles

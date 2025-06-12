@@ -41,13 +41,36 @@ model addresses {
     updated             DateTime @default(now()) @updatedAt
 }
 
+model titles {
+    id                  String @id @default(cuid(2))
+    name                String @unique
+    creator             String
+    created             DateTime @default(now())
+    updated             DateTime @default(now()) @updatedAt
+
+    profiles            profiles[]
+}
+
+model interests {
+    id                  String @id @default(cuid(2))
+    name                String @unique
+    creator             String
+    created             DateTime @default(now())
+    updated             DateTime @default(now()) @updatedAt
+
+    profiles            profiles[]
+}
+
 model profiles {
     id                  String @id @default(cuid(2))
     userRef             users @relation(fields: [user], references: [id], onDelete: Cascade)
     user                String @unique
+    title               titles? @relation(fields: [titleId], references: [id], onDelete: SetNull)
+    titleId             String?
     firstName           String
     lastName            String
     birthDate           DateTime
+    interests           interests[]
     creator             String
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
