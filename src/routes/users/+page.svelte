@@ -249,35 +249,6 @@
         }
     }
 
-    async function save(node, name, type, index = null) {
-        schemas[type].filter(s => s.type === 'DateTime').forEach(d => {
-            if (node[d.name]) {
-                node[d.name] = new Date(node[d.name])
-            }
-        })
-        const ref = schemas[type].find(s => s.kind === 'object' && s.type === resource && !s.isList && s.isRequired)
-        if (ref) {
-            node[ref.relationFromFields] = model.id
-        }
-        const response = await mutate(`${type}/${node['id'] ?? ''}`, node, node['id'] ? 'PUT' : 'POST');
-        if (response.ok) {
-            const resp = response.json
-            schemas[type].filter(s => s.type === 'DateTime').forEach(d => {
-                if (resp[d.name]) {
-                    resp[d.name] = resp[d.name].slice(0, -14)
-                }
-            })
-            if (schema.find(s => s.name === name).isList) {
-                model[name][index ?? 0] = resp
-            } else {
-                model[name] = resp
-            }
-            err = '';
-        } else {
-            err = response.json.message
-        }
-    }
-
     function show(field) {
         gridHide = gridHide.includes(field) ? gridHide.filter(i => i !== field) : [...gridHide, field]
         localStorage.setItem(resource, JSON.stringify(gridHide))
@@ -475,65 +446,11 @@
                 <label onclick={() => key++} for={rel.name}>{capitalize(rel.name)}</label>
                 <div class="tab">
                     (* indicates required field)
-                    {#if model[rel.name][0] && Object.keys(model[rel.name][0]).includes('id') && !(schemas[rel.type].find(s => s.type === resource)).isList}
-                        <button onclick={() => model[rel.name].unshift({})}>Add another</button>
-                    {/if}
-                    <br><span style="color: red;">{err}</span>
                     {#key key}
                         {#if rel.isList && !(schemas[rel.type].find(s => s.type === resource)).isList}
-                            {#each model[rel.name] as item, i}
-                                <br>
-                                <fieldset>
-                                    <form>
-                                        {#each schemas[rel.type] as col}
-                                            {#if !(schemas[rel.type].find(s => s.relationFromFields &&
-                                              s.relationFromFields.includes(col.name))) && col.type !== resource
-                                            && !formHide.includes(col.name)}
-                                                {capitalize(col.name)}{col.isRequired && col.type !== 'Boolean' ? '*' : ''} :
-                                                {#if col.type === 'Boolean'}
-                                                    <input type="checkbox" bind:checked={model[rel.name][i][col.name]}><p></p>
-                                                {:else if col.type === 'String'}
-                                                    <input type="text" bind:value={model[rel.name][i][col.name]}>
-                                                {:else if col.type === 'Int'}
-                                                    <input type="number" bind:value={model[rel.name][i][col.name]}>
-                                                {:else if col.type === 'Float'}
-                                                    <input type="number" step="any" bind:value={model[rel.name][i][col.name]}>
-                                                {:else if col.type === 'DateTime'}
-                                                    <input type="date" bind:value={model[rel.name][i][col.name]}>
-                                                {/if}
-                                            {/if}
-                                        {/each}
-                                        <button onclick={() => save(model[rel.name][i], rel.name, rel.type, [i])}>Save</button>
-                                        <button onclick={() => remove(model[rel.name][i]['id'], rel.name, rel.type, i)}>Delete</button>
-                                        <button onclick={() => grid = true}>Cancel</button>
-                                    </form>
-                                </fieldset>
-                            {/each}
+
                         {:else if !rel.isList && !(schemas[rel.type].find(s => s.type === resource)).isList}
-                            <br>
-                            <form>
-                                {#each schemas[rel.type] as col}
-                                    {#if !(schemas[rel.type].find(s => s.relationFromFields &&
-                                      s.relationFromFields.includes(col.name))) && col.type !== resource
-                                    && !formHide.includes(col.name)}
-                                        {capitalize(col.name)}{col.isRequired && col.type !== 'Boolean' ? '*' : ''} :
-                                        {#if col.type === 'Boolean'}
-                                            <input type="checkbox" bind:checked={model[rel.name][col.name]}><p></p>
-                                        {:else if col.type === 'String'}
-                                            <input type="text" bind:value={model[rel.name][col.name]}>
-                                        {:else if col.type === 'Int'}
-                                            <input type="number" bind:value={model[rel.name][col.name]}>
-                                        {:else if col.type === 'Float'}
-                                            <input type="number" step="any" bind:value={model[rel.name][col.name]}>
-                                        {:else if col.type === 'DateTime'}
-                                            <input type="date" bind:value={model[rel.name][col.name]}>
-                                        {/if}
-                                    {/if}
-                                {/each}
-                                <button onclick={() => save(model[rel.name], rel.name, rel.type)}>Save</button>
-                                <button onclick={() => remove(model[rel.name]['id'], rel.name, rel.type)}>Delete</button>
-                                <button onclick={() => grid = true}>Cancel</button>
-                            </form>
+
                         {:else if (schemas[rel.type].find(s => s.type === resource)).isList}
                             <br>
                             <table>

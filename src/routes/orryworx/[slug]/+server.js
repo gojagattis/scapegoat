@@ -1,7 +1,7 @@
 import {error, json} from "@sveltejs/kit";
 import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
-import { graph, cache } from '$lib/server/common.js';
+import { sanitize, prepare, graph, cache } from '$lib/server/common.js';
 
 export async function GET(event) {
     const slug = event.params.slug
@@ -27,7 +27,7 @@ export async function GET(event) {
     }
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
-        if (model.id !== event.locals.claims.sub) {
+        if (model.creator !== event.locals.claims.sub) {
             error(403, 'Forbidden')
         }
     }
@@ -54,7 +54,7 @@ export async function DELETE(event) {
     }
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
-        if (slug !== event.locals.claims.sub) {
+        if (model.creator !== event.locals.claims.sub) {
             error(403, 'Forbidden')
         }
     }
@@ -80,24 +80,15 @@ export async function PUT(event) {
     }
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
-        if (slug !== event.locals.claims.sub) {
+        if (model.creator !== event.locals.claims.sub) {
             error(403, 'Forbidden')
         }
     }
     const data = await event.request.json();
-    const system = ['id', 'creator', 'created', 'updated']
-    const schema = cache.get(event.url.pathname.split('/')[1])
-    schema.forEach(s => {
-        if (s.kind === 'scalar' && !system.includes(s.name) && data.hasOwnProperty(s.name)) {
-            if (s.type === 'String' && data[s.name]) {
-                data[s.name] = data[s.name].trim()
-            }
-            model[s.name] = data[s.name]
-        }
-    })
+    sanitize(data)
 
     model = await prisma[resource].update({
-        data: model,
+        data: data,
         where: {
             id: slug
         }

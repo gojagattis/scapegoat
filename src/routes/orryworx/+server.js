@@ -18,9 +18,10 @@ export async function POST(event) {
     if (errors.length) {
         error(400, `Required fields: ${errors.join(', ')}`)
     }
+
     let model = await prisma[event.locals.resource].create({
         data: data,
-    })
+    });
 
     const permission = event.locals.permission
     if (model && permission && permission.attributes.length > 0) {
