@@ -99,6 +99,7 @@
     })
 
     async function add(nest = false) {
+        const clone = JSON.parse(JSON.stringify(model))
         const data = {}
         schema.filter(s => s.type === 'DateTime').forEach(d => {
             if (model[d.name]) {
@@ -129,15 +130,13 @@
                     }
                 });
             } else {
-                if (connect[n].id) {
-                    if (connect[n].id !== model[n].id) {
-                        data[n] = {
-                            connect: {
-                                id: connect[n].id
-                            }
+                if (connect[n].id && (!model[n].id || connect[n].id !== model[n].id)) {
+                    data[n] = {
+                        connect: {
+                            id: connect[n].id
                         }
                     }
-                } else if (model[n] && model[n].id) {
+                } else if (connect[n].id === '' && model[n] && model[n].id) {
                     data[n] = {
                         disconnect: true
                     }
@@ -156,19 +155,31 @@
                 delete model[k]
             }
         })
-        const keys = Object.keys(data).length > 0
 
-        const response = await mutate(`${resource}/${model.id ?? ''}`, keys ? data : model, model.id ? 'PUT' : 'POST');
+        const response = await mutate(`${resource}/${model.id ?? ''}`, Object.keys(data).length > 0 ? data : model, model.id ? 'PUT' : 'POST');
         if (response.ok) {
             err = ''
-            if (!keys) {
-                model = {}
-                refresh((await query(qs)).json)
-                grid = true
+            if (!model.id) {
+                model = {};
+                models = [response.json, ...models];
+                grid = true;
+            } else {
+                schema.filter(s => s.type === 'DateTime').forEach(d => {
+                    if (model[d.name]) {
+                        model[d.name] = dayjs(model[d.name]).format('YYYY-MM-DD')
+                    }
+                })
+                models[models.findIndex(m => m.id === model.id)] = response.json
+                model = clone
             }
         } else {
+            schema.filter(s => s.type === 'DateTime').forEach(d => {
+                if (model[d.name]) {
+                    model[d.name] = dayjs(model[d.name]).format('YYYY-MM-DD')
+                }
+            })
             err = response.json.message
-            if (!keys) {
+            if (!model.id) {
                 document.forms[0].elements[0].focus()
             }
         }
@@ -180,7 +191,7 @@
 
         const map = {}
         schema.forEach(s => {
-            if (s.kind === 'object') {
+            if (s.kind === 'object' && schemas[s.type].find(f => f.relationName === s.relationName).isList) {
                 map[s.name] = s.type
             }
         })
@@ -205,15 +216,15 @@
                 }
                 schemas[v].filter(s => s.type === 'DateTime').forEach(d => {
                     if (model[k][d.name]) {
-                        model[k][d.name] = model[k][d.name].slice(0, -14)
+                        model[k][d.name] = dayjs(model[k][d.name]).format('YYYY-MM-DD')
                     }
-                });
+                })
             })
         }
 
         schema.filter(s => s.type === 'DateTime').forEach(d => {
             if (model[d.name]) {
-                model[d.name] = model[d.name].slice(0, -14)
+                model[d.name] = dayjs(model[d.name]).format('YYYY-MM-DD')
             }
         })
         grid = false
@@ -432,7 +443,7 @@
                         {/if}
                     {/if}
                 {/each}
-                <button onclick={() => add(true)}>{model.id ? 'Edit' : 'Add'}</button>
+                <button onclick={() => add(true)}>{model.id ? 'Update' : 'Create'}</button>
                 <button onclick={() => grid = true}>Cancel</button>
             </form>
         </div>
@@ -466,7 +477,7 @@
                                         {#if rel.isList}
                                             <td><input type="checkbox" bind:checked={connect[rel.name][item.id]}></td>
                                         {:else}
-                                            <td><input style="display: initial" type="radio" value={item.id} bind:group={model[rel.name].id}></td>
+                                            <td><input style="display: initial" type="radio" value={item.id} bind:group={connect[rel.name].id}></td>
                                         {/if}
                                         {#each schemas[rel.type] as col}
                                             {#if !gridHide.includes(col.name) && col.name !== 'updated'}
