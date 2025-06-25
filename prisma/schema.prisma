@@ -42,23 +42,23 @@ model addresses {
 }
 
 model titles {
+    profiles            profiles[]
+
     id                  String @id @default(cuid(2))
     name                String @unique
     creator             String
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
-
-    profiles            profiles[]
 }
 
 model interests {
+    profiles            profiles[]
+
     id                  String @id @default(cuid(2))
     name                String @unique
     creator             String
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
-
-    profiles            profiles[]
 }
 
 model profiles {
@@ -77,13 +77,13 @@ model profiles {
 }
 
 model goals {
+    users               users[]
+
     id                  String @id @default(cuid(2))
     name                String @unique
     creator             String
     created             DateTime @default(now())
     updated             DateTime @default(now()) @updatedAt
-
-    users               users[]
 }
 
 model roles {

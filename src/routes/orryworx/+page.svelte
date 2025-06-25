@@ -80,13 +80,15 @@
         refresh(response)
         schemas = response.schemas
         schema = schemas[resource]
-        const final = schema.findIndex(s => s.name === 'updated')
+        const upper = schema.findIndex(s => s.name === 'id')
+        const lower = schema.findIndex(s => s.name === 'updated')
         schema.forEach((s, i) => {
             columns[s.name] = true
             if (s.kind === 'object' || schema.filter(f => f.relationFromFields && f.relationFromFields.includes(s.name)).length > 0) {
                 gridHide.push(s.name)
             }
-            if (i > final || schema.filter(f => f.relationFromFields && f.relationFromFields.includes(s.name)).length > 0) {
+            if (i > lower || i < upper || schema.filter(f => f.relationFromFields && f.relationFromFields.includes(s.name)).length > 0
+              || (s.relationOnDelete === 'Cascade' && s.relationToFields.includes('id'))) {
                 formHide.push(s.name)
             }
         })
