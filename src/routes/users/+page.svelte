@@ -2,13 +2,15 @@
     import { onMount, tick } from 'svelte';
     import { query, capitalize, singularize, limit, mutate } from '$lib/common';
     import dayjs from "dayjs";
-    import { page } from '$app/state';
+    import { page } from '$app/stores';
+    import { page as current } from '$app/state';
     import {browser} from "$app/environment";
+    import { goto, replaceState } from '$app/navigation';
 
-    const resource = page.url.pathname.slice(1)
+    const resource = current.url.pathname.slice(1)
     const operations = ['create', 'update', 'delete', 'connect', 'disconnect']
     let gridHide = $state(browser && localStorage.getItem(resource) ? JSON.parse(localStorage.getItem(resource)) : ['id', 'password', 'creator', 'created'])
-    const formHide = $state(['id', 'creator', 'created', 'updated'])
+    let formHide = $state(['id', 'creator', 'created', 'updated'])
     let models = $state([])
     let model = $state({})
     let columns = $state({})
@@ -30,7 +32,36 @@
     let schemas = $state({})
     let master = $state({})
     let connect = $state({})
+    let params = $state()
     let checked = 'checked'
+    let submitted = false
+
+    export const snapshot = {
+        capture: () => {
+            $page.url.searchParams.set('serialized', true);
+            replaceState($page.url, $page.state);
+            return {gridHide, formHide, models, model, columns, schema, grid, clause, count, skip, order, sort, schemas, master, connect}
+        },
+        restore: (data) => {
+            gridHide  = data.gridHide
+            formHide = data.formHide
+            models = data.models
+            model = data.model
+            columns = data.columns
+            schema = data.schema
+            grid = data.grid
+            clause = data.clause
+            count = data.count
+            skip = data.skip
+            order = data.order
+            sort = data.sort
+            schemas = data.schemas
+            master = data.master
+            connect = data.connect
+            $page.url.searchParams.delete('serialized')
+            replaceState($page.url, $page.state);
+        }
+    }
 
     function once() {
         checked = ''
@@ -76,31 +107,39 @@
     }
 
     onMount(async () => {
-        const response = (await query(`${qs}&schema=true`)).json
-        refresh(response)
-        schemas = response.schemas
-        schema = schemas[resource]
-        const upper = schema.findIndex(s => s.name === 'id')
-        const lower = schema.findIndex(s => s.name === 'updated')
-        schema.forEach((s, i) => {
-            columns[s.name] = true
-            if (s.kind === 'object' || schema.filter(f => f.relationFromFields && f.relationFromFields.includes(s.name)).length > 0) {
-                gridHide.push(s.name)
-            }
-            if (i > lower || i < upper || schema.filter(f => f.relationFromFields && f.relationFromFields.includes(s.name)).length > 0
-              || (s.relationOnDelete === 'Cascade' && s.relationToFields.includes('id'))) {
-                formHide.push(s.name)
-            }
-        })
-        gridHide.forEach(col => columns[col] = false)
-        for (const [k, v] of Object.entries(schemas)) {
-            if (k !== resource && v.find(s => s.type === resource).isList) {
-                master[k] = (await query(k)).json.data
+        params = current.url.searchParams
+        clause = params.get('where')
+        if (!params.get('serialized')) {
+            const response = (await query(`${qs}&schema=true`)).json
+            refresh(response)
+            schemas = response.schemas
+            schema = schemas[resource]
+            const upper = schema.findIndex(s => s.name === 'id')
+            const lower = schema.findIndex(s => s.name === 'updated')
+            schema.forEach((s, i) => {
+                columns[s.name] = true
+                if (s.kind === 'object' || schema.filter(f => f.relationFromFields && f.relationFromFields.includes(s.name)).length > 0) {
+                    gridHide.push(s.name)
+                }
+                if (i > lower || i < upper || schema.filter(f => f.relationFromFields && f.relationFromFields.includes(s.name)).length > 0
+                  || (s.relationOnDelete === 'Cascade' && s.relationToFields.includes('id'))) {
+                    formHide.push(s.name)
+                }
+            })
+            gridHide.forEach(col => columns[col] = false)
+            for (const [k, v] of Object.entries(schemas)) {
+                if (k !== resource) {
+                    const node = v.find(s => s.type === resource)
+                    if (node.isList && schema.findIndex(f => f.relationName === node.relationName) > upper) {
+                        master[k] = (await query(k)).json.data
+                    }
+                }
             }
         }
     })
 
     async function add(nest = false) {
+        submitted = true
         const clone = JSON.parse(JSON.stringify(model))
         const data = {}
         schema.filter(s => s.type === 'DateTime').forEach(d => {
@@ -288,6 +327,14 @@
         })
     }
 
+    function navigate(rel) {
+        const node = schemas[rel.type].find(s => s.relationName === rel.relationName)
+        if (!node.isList) {
+            goto(`/${rel.type}?where=${node.relationFromFields[0]},equals,${model[node.relationToFields[0]]}`)
+        }
+        key++
+    }
+
 </script>
 
 <svelte:window on:keyup={e => {
@@ -303,6 +350,9 @@
 {#if grid}
     <nav>
         <ul>
+            {#if params && params.get('where')}
+                <button onclick={() => submitted ? history.go(-2) : history.back()}>Back</button>
+            {/if}
             <li><h3>{capitalize(resource)}</h3><button onclick={focus}>Add</button></li>
             <li><a href="#/">Columns ▾</a>
                 <ul>
@@ -376,6 +426,12 @@
     {/if}
 {:else}
     <div class="tabs">
+        {#if params && params.get('where')}
+            <input type="radio" name="tabs" id="{params.get('where').split(',')[0]}">
+            <label onclick={() => submitted ? history.go(-2) : history.back()} for={params.get('where').split(',')[0]}>{capitalize(params.get('where').split(',')[0])}</label>
+            <div class="tab">
+            </div>
+        {/if}
         <input type="radio" name="tabs" id={resource} {checked}>
         <label onclick={() => key++} for={resource}>{singularize(resource)}</label>
         <div class="tab">
@@ -456,7 +512,7 @@
         {#each schema as rel}
             {#if rel.kind === 'object' && schema.findIndex(s => s.name === rel.name) > schema.findIndex(s => s.name === 'updated')}
                 <input type="radio" name="tabs" id={rel.name} {checked}>
-                <label onclick={() => key++} for={rel.name}>{capitalize(rel.name)}</label>
+                <label onclick={() => navigate(rel)} for={rel.name}>{capitalize(rel.name)}</label>
                 <div class="tab">
                     (* indicates required field)
                     {#key key}
