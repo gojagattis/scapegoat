@@ -10,6 +10,7 @@
     let model = $state({username: '', password: '', extend: false})
     let error = $state('');
     let resources = $state([])
+    let theme = $state('☪')
 
     function privileges(roles) {
         resources = []
@@ -69,6 +70,17 @@
         error = ''
         goto('/')
     }
+
+    function toggle(){
+        if (theme === '☪'){
+            theme = '☀'
+            document.documentElement.setAttribute('data-theme', 'dark')
+        } else {
+            theme = '☪'
+            document.documentElement.setAttribute('data-theme', 'light')
+        }
+    }
+
 </script>
 
 <svelte:head>
@@ -76,6 +88,7 @@
     <link rel="stylesheet" href="/classless.css">
     <link rel="stylesheet" href="/siimple-icons.css">
     <link rel="stylesheet" href="/tabbox.css">
+    <link rel="stylesheet" href="/themes.css">
 </svelte:head>
 
 {#if browser}
@@ -88,6 +101,7 @@
                 {/each}
                 <li><a href="#/">Menu ▾</a>
                     <ul>
+                        <li><a href="#/" onclick={toggle}>{theme}</a></li>
                         <li><a href="#/" onclick={logout}>Logout</a></li>
                     </ul>
                 </li>

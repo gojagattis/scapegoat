@@ -189,6 +189,16 @@
             }
         })
 
+        const fk = params.get('where')
+        if (fk) {
+            const terms = fk.split(',')
+            model[schema.find(k => k.relationFromFields && k.relationFromFields.includes(terms[0])).name] = {
+                connect: {
+                    id: terms[2]
+                }
+            }
+        }
+
         Object.keys(model).forEach(k => {
             if ((Array.isArray(model[k]) && (model[k].length === 0 || Object.keys(model[k][0]).length === 0))
               || (model[k] && typeof model[k] === 'object' && !Object.keys(model[k]).every(e => operations.includes(e)))
