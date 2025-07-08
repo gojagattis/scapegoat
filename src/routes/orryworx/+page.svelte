@@ -34,7 +34,20 @@
     let connect = $state({})
     let params = $state()
     let checked = 'checked'
-    let submitted = false
+    let submitted = $state(false)
+    let edited = $state(false)
+    let deleted = $state(false)
+    let depth = $derived.by(() => {
+        let depth = -1
+        if (submitted && edited && deleted) {
+            depth = -4
+        } else if((submitted && edited) || (submitted && deleted) || (edited && deleted)) {
+            depth = -3
+        } else if (submitted || edited || deleted) {
+            depth = -2
+        }
+        return depth
+    })
 
     export const snapshot = {
         capture: () => {
@@ -237,6 +250,7 @@
     }
 
     async function edit(item) {
+        edited = true
         err = ''
         model = { ...item }
 
@@ -282,6 +296,7 @@
     }
 
     async function remove(id, name = null, route = resource, index = null) {
+        deleted = true
         if (!id) {
             return
         }
@@ -361,7 +376,7 @@
     <nav>
         <ul>
             {#if params && params.get('where')}
-                <button onclick={() => submitted ? history.go(-2) : history.back()}>Back</button>
+                <button onclick={() => history.go(depth)}>Back</button>
             {/if}
             <li><h3>{capitalize(resource)}</h3><button onclick={focus}>Add</button></li>
             <li><a href="#/">Columns ▾</a>
@@ -438,7 +453,7 @@
     <div class="tabs">
         {#if params && params.get('where')}
             <input type="radio" name="tabs" id="{params.get('where').split(',')[0]}">
-            <label onclick={() => submitted ? history.go(-2) : history.back()} for={params.get('where').split(',')[0]}>{capitalize(params.get('where').split(',')[0])}</label>
+            <label onclick={() => history.go(depth)} for={params.get('where').split(',')[0]}>{capitalize(params.get('where').split(',')[0])}</label>
             <div class="tab">
             </div>
         {/if}

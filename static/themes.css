@@ -15,8 +15,8 @@ html[data-theme='dark'] {
 	--cfg:   #cecbc4; --cbg:    #252220;
 	--cdark: #999;    --clight: #333;
 	--cmed:  #566;
-	--clink: #1ad;
-	--cemph: #0b9;    --cemphbg: #0b91;
+	--clink: #cecbc4;
+	--cemph: #1ad;    --cemphbg: #0b91;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,7 +27,7 @@ html[data-theme='dark'] {
 		--cmed:  #566;
 		--clink: #1ad;
 		--cemph: #0b9;    --cemphbg: #0b91;
-	}	
+	}
 }
 
 
@@ -38,7 +38,7 @@ html[data-theme='sepia']{
 	--font-p: 1em/1.6 'Libertinus Serif', Times, serif;
 	--font-h: 1em/1.6 'Libertinus Sans', Helvetica, sans;
 	--font-c: 85%/1.4 monospace;
-	--ornament: "∞ ∞ ∞"; 
+	--ornament: "∞ ∞ ∞";
 	/*--ornament: "❦ ❦ ❦"; "☙ ❧";*/
 	/* foreground   | background color */
 	--cfg:    #433;   --cbg: #fefbf4;
