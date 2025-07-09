@@ -6,9 +6,11 @@
     import { page as current } from '$app/state';
     import {browser} from "$app/environment";
     import { goto, replaceState } from '$app/navigation';
+    import { permissions } from '$lib/common.svelte.js';
 
     const resource = current.url.pathname.slice(1)
     const operations = ['create', 'update', 'delete', 'connect', 'disconnect']
+    const perms = $state([])
     let gridHide = $state(browser && localStorage.getItem(resource) ? JSON.parse(localStorage.getItem(resource)) : ['id', 'password', 'creator', 'created'])
     let formHide = $state(['id', 'creator', 'created', 'updated'])
     let models = $state([])
@@ -34,6 +36,7 @@
     let connect = $state({})
     let params = $state()
     let checked = 'checked'
+    let disabled = $derived(perms.includes('update') ? '' : 'disabled')
     let submitted = $state(false)
     let edited = $state(false)
     let deleted = $state(false)
@@ -120,6 +123,17 @@
     }
 
     onMount(async () => {
+        permissions.filter(p => p.resource === resource).forEach(f => {
+            if (f.action.startsWith('create:')) {
+                perms.push('create')
+            } else if (f.action.startsWith('delete:')) {
+                perms.push('delete')
+            } else if (f.action.startsWith('update:')) {
+                perms.push('update')
+            } else if (f.action.startsWith('read:')) {
+                perms.push('read')
+            }
+        })
         params = current.url.searchParams
         clause = params.get('where')
         if (!params.get('serialized')) {
@@ -378,7 +392,11 @@
             {#if params && params.get('where')}
                 <button onclick={() => history.go(depth)}>Back</button>
             {/if}
-            <li><h3>{capitalize(resource)}</h3><button onclick={focus}>Add</button></li>
+            <li><h3>{capitalize(resource)}</h3>
+                {#if perms.includes('create')}
+                    <button onclick={focus}>Add</button>
+                {/if}
+            </li>
             <li><a href="#/">Columns ▾</a>
                 <ul>
                     {#each schema as col}
@@ -426,8 +444,12 @@
                         {/if}
                     {/if}
                 {/each}
-                <td><a href="#/" onclick={() => edit(item)}><i class="si-edit"></i></a></td>
-                <td><a href="#/" onclick={() => remove(item.id)}><i class="si-trash"></i></a></td>
+                <td><a href="#/" onclick={() => edit(item)}><i class={perms.includes('update') ? 'si-edit' : 'si-eye'}></i></a></td>
+                <td>
+                    {#if perms.includes('delete')}
+                        <a href="#/" onclick={() => remove(item.id)}><i class="si-trash"></i></a>
+                    {/if}
+                </td>
             </tr>
         {/each}
         </tbody>
@@ -464,74 +486,80 @@
             <br><span style="color: red;">{err}</span>
             <br>
             <form>
-                {#each schema as rel}
-                    {#if !formHide.includes(rel.name) && schema.findIndex(s => s.name === rel.name) <= schema.findIndex(s => s.name === 'updated')}
-                        {capitalize(rel.name)}{rel.isRequired && rel.type !== 'Boolean' && rel.kind !== 'object' ? '*' : ''} :
-                        {#if rel.type === 'Boolean'}
-                            <input type="checkbox" bind:checked={model[rel.name]}><p></p>
-                        {:else if rel.type === 'String'}
-                            {#if rel.name === 'password'}
-                                <input type="password" bind:value={model[rel.name]}>
-                            {:else}
-                                <input type="text" bind:value={model[rel.name]}>
-                            {/if}
-                        {:else if rel.type === 'Int'}
-                            <input type="number" bind:value={model[rel.name]}>
-                        {:else if rel.type === 'Float'}
-                            <input type="number" step="any" bind:value={model[rel.name]}>
-                        {:else if rel.type === 'DateTime'}
-                            <input type="date" bind:value={model[rel.name]}>
-                        {:else if rel.kind === 'object' && (schemas[rel.type].find(s => s.type === resource)).isList}
-                            <br>
-                            {#if rel.isList}
-                                <table>
-                                    <thead>
-                                    <tr>
-                                        <th></th>
-                                        {#each schemas[rel.type] as col}
-                                            {#if !gridHide.includes(col.name) && col.kind !== 'object' && col.name !== 'updated'}
-                                                <th>{capitalize(col.name)}</th>
-                                            {/if}
-                                        {/each}
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {#each master[rel.type] as item}
+                <fieldset {disabled}>
+                    {#each schema as rel}
+                        {#if !formHide.includes(rel.name) && schema.findIndex(s => s.name === rel.name) <= schema.findIndex(s => s.name === 'updated')}
+                            {capitalize(rel.name)}{rel.isRequired && rel.type !== 'Boolean' && rel.kind !== 'object' ? '*' : ''} :
+                            {#if rel.type === 'Boolean'}
+                                <input type="checkbox" bind:checked={model[rel.name]}><p></p>
+                            {:else if rel.type === 'String'}
+                                {#if rel.name === 'password'}
+                                    <input type="password" bind:value={model[rel.name]}>
+                                {:else}
+                                    <input type="text" bind:value={model[rel.name]}>
+                                {/if}
+                            {:else if rel.type === 'Int'}
+                                <input type="number" bind:value={model[rel.name]}>
+                            {:else if rel.type === 'Float'}
+                                <input type="number" step="any" bind:value={model[rel.name]}>
+                            {:else if rel.type === 'DateTime'}
+                                <input type="date" bind:value={model[rel.name]}>
+                            {:else if rel.kind === 'object' && (schemas[rel.type].find(s => s.type === resource)).isList}
+                                <br>
+                                {#if rel.isList}
+                                    <table>
+                                        <thead>
                                         <tr>
-                                            <td><input type="checkbox" bind:checked={connect[rel.name][item.id]}></td>
+                                            <th></th>
                                             {#each schemas[rel.type] as col}
-                                                {#if !gridHide.includes(col.name) && col.name !== 'updated'}
-                                                    {#if col.type === 'DateTime'}
-                                                        <td>{item[col.name] ? item[col.name].endsWith('T00:00:00.000Z') ? dayjs(item[col.name]).format('YYYY-MM-DD') : dayjs(item[col.name]).format('YYYY-MM-DD HH:mm') : ''}</td>
-                                                    {:else if col.type === 'Boolean'}
-                                                        {#if item[col.name]}
-                                                            <td><i class="si-check"></i></td>
-                                                        {:else}
-                                                            <td><i class="si-x"></i></td>
-                                                        {/if}
-                                                    {:else }
-                                                        <td>{item[col.name]}</td>
-                                                    {/if}
+                                                {#if !gridHide.includes(col.name) && col.kind !== 'object' && col.name !== 'updated'}
+                                                    <th>{capitalize(col.name)}</th>
                                                 {/if}
                                             {/each}
                                         </tr>
-                                    {/each}
-                                    </tbody>
-                                </table>
-                            {:else}
-                                <select bind:value={connect[rel.name].id}>
-                                    <option selected></option>
-                                    {#each master[rel.type] as item}
-                                        <option value={item.id}>{item.name}</option>
-                                    {/each}
-                                </select>
+                                        </thead>
+                                        <tbody>
+                                        {#each master[rel.type] as item}
+                                            <tr>
+                                                <td><input type="checkbox" bind:checked={connect[rel.name][item.id]}></td>
+                                                {#each schemas[rel.type] as col}
+                                                    {#if !gridHide.includes(col.name) && col.name !== 'updated'}
+                                                        {#if col.type === 'DateTime'}
+                                                            <td>{item[col.name] ? item[col.name].endsWith('T00:00:00.000Z') ? dayjs(item[col.name]).format('YYYY-MM-DD') : dayjs(item[col.name]).format('YYYY-MM-DD HH:mm') : ''}</td>
+                                                        {:else if col.type === 'Boolean'}
+                                                            {#if item[col.name]}
+                                                                <td><i class="si-check"></i></td>
+                                                            {:else}
+                                                                <td><i class="si-x"></i></td>
+                                                            {/if}
+                                                        {:else }
+                                                            <td>{item[col.name]}</td>
+                                                        {/if}
+                                                    {/if}
+                                                {/each}
+                                            </tr>
+                                        {/each}
+                                        </tbody>
+                                    </table>
+                                {:else}
+                                    <select bind:value={connect[rel.name].id}>
+                                        <option selected></option>
+                                        {#each master[rel.type] as item}
+                                            <option value={item.id}>{item.name}</option>
+                                        {/each}
+                                    </select>
+                                {/if}
+                                <br>
                             {/if}
-                            <br>
                         {/if}
-                    {/if}
-                {/each}
-                <button onclick={() => add(true)}>{model.id ? 'Update' : 'Create'}</button>
-                <button onclick={() => grid = true}>Cancel</button>
+                    {/each}
+                </fieldset>
+                {#if perms.includes('create') && !model.id}
+                    <button onclick={() => add(true)}>Create</button>
+                {:else if perms.includes('update') && model.id}
+                    <button onclick={() => add(true)}>Update</button>
+                {/if}
+                <button onclick={() => grid = true}>Back</button>
             </form>
         </div>
         {#each schema as rel}
@@ -599,5 +627,8 @@
 <style>
     h3, nav {
         display: inline;
+    }
+    fieldset {
+        border: none;
     }
 </style>

@@ -4,6 +4,7 @@
     import { token, query, capitalize } from "$lib/common.js";
     import dayjs from "dayjs";
     import { goto } from '$app/navigation';
+    import { permissions } from '$lib/common.svelte.js';
 
     let { children } = $props()
     let authenticated = $state(false)
@@ -19,6 +20,7 @@
                 if (perm.action.startsWith('read:')) {
                     resources.push(perm.resource)
                 }
+                permissions.push(perm)
             })
         })
     }
@@ -61,6 +63,7 @@
     }
 
     function logout() {
+        permissions.length = 0
         sessionStorage.clear()
         localStorage.clear()
         document.cookie = "token=; max-age=0; path=/"
