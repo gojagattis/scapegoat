@@ -3,7 +3,16 @@ import {prisma} from "$lib/prisma";
 import {log} from "$lib/logger.js";
 import { sanitize, prepare, graph, cache } from '$lib/server/common.js';
 
+function owner(resource) {
+    const schema = cache.get(resource)
+    const userRel = schema.find(s => s.kind === 'object' && s.type === 'users' && !s.isList)
+    if (userRel) {
+        return userRel.relationFromFields[0]
+    }
+}
+
 export async function GET(event) {
+    const resource = event.locals.resource
     const slug = event.params.slug
     let fields
     let include = 'include'
@@ -16,7 +25,7 @@ export async function GET(event) {
         value = v
     }
 
-    let model =  await prisma[event.locals.resource].findUnique({
+    let model =  await prisma[resource].findUnique({
         where: {
             id: slug
         },
@@ -27,7 +36,10 @@ export async function GET(event) {
     }
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
-        if (model.creator !== event.locals.claims.sub) {
+        const claims = event.locals.claims
+        const user = owner(resource)
+        if ((user && model[user] !== claims.sub && model[user] !== claims.name) ||
+          (!user && model.creator !== claims.sub)) {
             error(403, 'Forbidden')
         }
     }
@@ -54,7 +66,10 @@ export async function DELETE(event) {
     }
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
-        if (model.creator !== event.locals.claims.sub) {
+        const claims = event.locals.claims
+        const user = owner(resource)
+        if ((user && model[user] !== claims.sub && model[user] !== claims.name) ||
+          (!user && model.creator !== claims.sub)) {
             error(403, 'Forbidden')
         }
     }
@@ -80,7 +95,10 @@ export async function PUT(event) {
     }
     const permission = event.locals.permission
     if (permission && permission.possession === 'own') {
-        if (model.creator !== event.locals.claims.sub) {
+        const claims = event.locals.claims
+        const user = owner(resource)
+        if ((user && model[user] !== claims.sub && model[user] !== claims.name) ||
+          (!user && model.creator !== claims.sub)) {
             error(403, 'Forbidden')
         }
     }
