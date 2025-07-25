@@ -17,7 +17,15 @@ export async function init() {
     prisma.$queryRaw`pragma mmap_size = 30000000000;`
 
     const models = prisma['_runtimeDataModel']['models']
-    Object.keys(models).forEach(m => cache.set(m, models[m]['fields']))
+    const deps = []
+    Object.keys(models).forEach(m => {
+        const fields = models[m]['fields']
+        if (fields.find(f => f.relationOnDelete && f.relationOnDelete === 'Cascade')) {
+            deps.push(m)
+        }
+        cache.set(m, fields)
+    })
+    cache.set('dependents', deps)
 }
 
 export async function handle({ event, resolve }) {

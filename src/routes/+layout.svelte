@@ -13,11 +13,13 @@
     let resources = $state([])
     let theme = $state('☪')
 
-    function privileges(roles) {
+    function privileges(roles, dependents) {
         resources = []
         roles.forEach(role => {
             role.permissions.forEach(perm => {
-                if (perm.action.startsWith('read:')) {
+                if (!dependents.includes(perm.resource) && (perm.action === 'read:own' ||
+                  perm.resource === 'privileges' || (perm.action === 'read:any' &&
+                  role.permissions.filter(p => p.resource === perm.resource).length > 1))) {
                     resources.push(perm.resource)
                 }
                 permissions.push(perm)
@@ -32,7 +34,8 @@
             const claims = (JSON.parse(atob(jwt.split('.')[1])));
             if (claims.exp > now) {
                 authenticated = true
-                privileges((await query(`/users/${claims.sub}?select=roles!@(permissions@resource@action)`)).json.roles)
+                privileges((await query(`/users/${claims.sub}?select=roles!@(permissions@resource@action)`)).json.roles,
+                  localStorage.getItem('dependents'))
             } // TODO else
         } else {
             document.forms[0].elements[0].focus()
@@ -56,7 +59,8 @@
             }
             document.cookie = "token=" + data.token + "; path=/";
             authenticated = true
-            privileges(data.roles)
+            privileges(data.roles, data.dependents)
+            localStorage.setItem('dependents', JSON.stringify(data.dependents))
         } else {
             error = data.message
         }

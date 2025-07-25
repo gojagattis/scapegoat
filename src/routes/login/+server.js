@@ -3,6 +3,7 @@ import {prisma} from "$lib/prisma.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { log } from '$lib/logger.js';
+import { cache } from '$lib/server/common.js';
 
 export async function POST(event) {
     const data = await event.request.json();
@@ -48,6 +49,7 @@ export async function POST(event) {
         return json({
             token: token,
             roles: user.roles,
+            dependents: cache.get('dependents'),
         });
     }
 }
