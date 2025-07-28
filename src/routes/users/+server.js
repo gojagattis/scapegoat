@@ -6,10 +6,11 @@ import {limit} from "$lib/common";
 import bcrypt from "bcrypt";
 
 export async function POST(event) {
+    const resource = event.locals.resource
     const data = await event.request.json();
     ['id', 'creator', 'created', 'updated'].forEach(i => delete data[i])
     data.creator = (claims(event)).sub
-    const schema = cache.get(event.url.pathname.split('/')[1])
+    const schema = cache.get(resource)
     const errors = []
     schema.forEach(s => {
         if (s.kind === 'scalar' && s.isRequired && !s.hasDefaultValue &&
@@ -42,7 +43,7 @@ export async function POST(event) {
         }
     }
 
-    let model = await prisma[event.locals.resource].create({
+    let model = await prisma[resource].create({
         data: data,
     });
 

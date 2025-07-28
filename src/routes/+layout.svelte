@@ -1,17 +1,31 @@
 <script>
-    import {onMount} from "svelte";
+    import { onMount } from 'svelte';
     import {browser} from "$app/environment";
-    import { token, query, capitalize } from "$lib/common.js";
+    import { token, query, capitalize, emailRegex, passwordRegex } from '$lib/common.js';
     import dayjs from "dayjs";
     import { goto } from '$app/navigation';
     import { permissions } from '$lib/common.svelte.js';
+    import { page } from '$app/state';
 
     let { children } = $props()
     let authenticated = $state(false)
     let model = $state({username: '', password: '', extend: false})
     let error = $state('');
+    let success = $state('');
     let resources = $state([])
     let theme = $state('☪')
+    let enroll = $state(false)
+    let confirm = $state('')
+
+    $effect(() => {
+        if (enroll || !enroll) {
+            error = confirm = ''
+            model = {username: '', password: '', extend: false}
+        }
+        if (enroll) {
+            success = ''
+        }
+    })
 
     function privileges(roles, dependents) {
         resources = []
@@ -28,7 +42,18 @@
     }
 
     onMount(async () => {
-        const jwt = token()
+        const params = page.url.searchParams
+        const key = params.get('key')
+        if (key) {
+            const response = await fetch(`/signup?key=${key}`, {})
+            const data = await response.json()
+            if (response.ok) {
+                success = data.message
+            } else {
+                error = data.message
+            }
+        }
+        const jwt = token();
         if (jwt) {
             const now = dayjs().unix();
             const claims = (JSON.parse(atob(jwt.split('.')[1])));
@@ -42,15 +67,46 @@
         }
     })
 
+    async function signup() {
+        error = ''
+        if (!model.username || !new RegExp(emailRegex).test(model.username)) {
+            error += 'Invalid email\n'
+        }
+        if (!model.password || !new RegExp(passwordRegex).test(model.password)) {
+            error += 'Invalid password\n'
+        }
+        if (model.password !== confirm) {
+            error += 'Passwords do not match\n'
+        }
+        if (!error) {
+            const response = await fetch('/signup', {
+                method: 'POST',
+                body: JSON.stringify(model),
+                headers: {
+                    'Content-type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            if (response.status === 200) {
+                await login()
+            } else if (response.status === 202) {
+                enroll = false
+                success = data.message
+            } else {
+                error = data.message
+            }
+        }
+    }
+
     async function login() {
-        let response = await fetch('/login', {
+        const response = await fetch('/login', {
             method: 'POST',
             body: JSON.stringify(model),
             headers: {
                 'Content-type': 'application/json'
             }
         });
-        let data = await response.json();
+        const data = await response.json();
         if (response.ok) {
             if (model.extend) {
                 localStorage.setItem('token', JSON.stringify(data.token))
@@ -71,10 +127,10 @@
         sessionStorage.clear()
         localStorage.clear()
         document.cookie = "token=; max-age=0; path=/"
-        authenticated = false
+        authenticated = enroll = false
         resources = []
         model = {username: '', password: '', extend: false}
-        error = ''
+        error = confirm = success = ''
         goto('/')
     }
 
@@ -117,19 +173,36 @@
         {@render children()}
     {:else}
         <fieldset>
-            <hgroup>
-                <h1>Sign in</h1>
-                <h2>Login to your account</h2>
-            </hgroup>
-            <span style="color: red">{error}</span>
-            <form>
-                <label>Email<input type="text" bind:value={model.username}></label>
-                <label>Password<input type="password" bind:value={model.password}></label>
-                <label><input type="checkbox" bind:checked={model.extend}> Remember me</label>
-                <button onclick={login}>Login</button>
-            </form>
-            <a href="/register">Sign up</a> |
-            <a href="/forgot">Forgot password?</a>
+            {#if enroll}
+                <hgroup>
+                    <h1>Sign up</h1>
+                    <h2>Create a new account</h2>
+                </hgroup>
+                <span style="color: red">{error}</span>
+                <form>
+                    <label>Email<input type="text" bind:value={model.username}></label>
+                    <label>Password<input type="password" bind:value={model.password}></label>
+                    <label>Confirm Password<input type="password" bind:value={confirm}></label>
+                    <button onclick={signup}>Sign up</button>
+                </form>
+                <a href="#/" onclick={() => enroll = false}>Sign in</a> |
+                <a href="/forgot">Forgot password?</a>
+            {:else}
+                <hgroup>
+                    <h1>Sign in</h1>
+                    <h2>Login to your account</h2>
+                </hgroup>
+                <span style="color: red">{error}</span>
+                <span style="color: darkgreen">{success}</span>
+                <form>
+                    <label>Email<input type="text" bind:value={model.username}></label>
+                    <label>Password<input type="password" bind:value={model.password}></label>
+                    <label><input type="checkbox" bind:checked={model.extend}> Remember me</label>
+                    <button onclick={login}>Login</button>
+                </form>
+                <a href="#/" onclick={() => enroll = true}>Sign up</a> |
+                <a href="/forgot">Forgot password?</a>
+            {/if}
         </fieldset>
     {/if}
 {:else}

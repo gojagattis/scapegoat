@@ -6,7 +6,7 @@ import {claims, token, cache} from "$lib/server/common.js";
 import {error} from "@sveltejs/kit";
 import cryptoRandomString from 'crypto-random-string';
 
-const open = ['/login', '/register', '/forgot', '/reset', '/']
+const open = ['/login', '/signup', '/forgot', '/reset', '/']
 
 export async function init() {
     prisma.$queryRaw`PRAGMA journal_mode = WAL;`
