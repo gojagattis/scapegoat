@@ -20,7 +20,7 @@ export async function GET(event) {
     const params = event.url.searchParams
     const key = params.get('key')
 
-    const user = await prisma.hold.findUnique({
+    const user = await prisma.holding_area.findUnique({
         where: {
             key: key
         }
@@ -38,7 +38,7 @@ export async function GET(event) {
             },
         },
     })
-    await prisma.hold.deleteMany({
+    await prisma.holding_area.deleteMany({
         where: {
             username: user.username
         }
@@ -67,7 +67,7 @@ export async function POST(event) {
         }
         if (TWO_FACTOR_AUTH) {
             data.key = cryptoRandomString({length: 31})
-            await prisma.hold.create({
+            await prisma.holding_area.create({
                 data: data,
             })
             //Send email with magic link .../?key=data.key

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ignore=(litestream_lock litestream_seq hold)
+ignore=(litestream_lock litestream_seq holding_area)
 
 if [ ! -d "prisma" ] ; then
   npm install prisma @prisma/client bcrypt jsonwebtoken accesscontrol winston dayjs nodemailer node-cache pluralize

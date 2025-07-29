@@ -10,7 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model hold {
+model holding_area {
     username            String
     password            String?
     key                 String @unique
@@ -122,13 +122,9 @@ model permissions {
 
 model litestream_lock {
     id                  Int @id
-
-    @@map("_litestream_lock")
 }
 
 model litestream_seq {
     id                  Int @id @default(autoincrement())
     seq                 Int?
-
-    @@map("_litestream_seq")
 }
