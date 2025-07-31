@@ -70,7 +70,7 @@ export async function POST(event) {
             await prisma.holding_area.create({
                 data: data,
             })
-            //Send email with magic link .../?key=data.key
+            //Send email with magic link .../?flow=signup&key=data.key
             return new Response(JSON.stringify({message: 'New user created.\nCheck email to continue.'}), {status: 202})
         } else {
             data.roles = {

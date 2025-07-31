@@ -15,15 +15,21 @@
     let resources = $state([])
     let theme = $state('☪')
     let enroll = $state(false)
+    let reset = $state(false)
+    let verified = $state(false)
     let confirm = $state('')
+    let params
 
     $effect(() => {
-        if (enroll || !enroll) {
+        if (enroll || !enroll || reset || !reset) {
             error = confirm = ''
             model = {username: '', password: '', extend: false}
         }
-        if (enroll) {
+        if (enroll || reset) {
             success = ''
+        }
+        if (!reset) {
+            verified = false
         }
     })
 
@@ -42,15 +48,20 @@
     }
 
     onMount(async () => {
-        const params = page.url.searchParams
+        params = page.url.searchParams
         const key = params.get('key')
-        if (key) {
-            const response = await fetch(`/signup?key=${key}`, {})
-            const data = await response.json()
-            if (response.ok) {
-                success = data.message
-            } else {
-                error = data.message
+        const flow = params.get('flow')
+        if (key && flow) {
+            if (flow === 'signup') {
+                const response = await fetch(`/signup?key=${key}`, {})
+                const data = await response.json()
+                if (response.ok) {
+                    success = data.message
+                } else {
+                    error = data.message
+                }
+            } else if (flow === 'reset') {
+                verified = reset = true
             }
         }
         const jwt = token();
@@ -66,6 +77,56 @@
             document.forms[0].elements[0].focus()
         }
     })
+
+    async function replace() {
+        error = ''
+        if (!model.password || !new RegExp(passwordRegex).test(model.password)) {
+            error += 'Invalid password\n'
+        }
+        if (model.password !== confirm) {
+            error += 'Passwords do not match\n'
+        }
+        if (!error) {
+            const response = await fetch('/reset', {
+                method: 'POST',
+                body: JSON.stringify({
+                    password: model.password,
+                    key: params.get('key'),
+                }),
+                headers: {
+                    'Content-type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                reset = verified = false
+                success = data.message
+            } else {
+                error = data.message
+            }
+        }
+    }
+
+    async function forgot() {
+        if (!model.username) {
+            error = 'Invalid email';
+        } else {
+            const response = await fetch('/forgot', {
+                method: 'POST',
+                body: JSON.stringify({username: model.username}),
+                headers: {
+                    'Content-type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                reset = false
+                success = data.message
+            } else {
+                error = data.message
+            }
+        }
+    }
 
     async function signup() {
         error = ''
@@ -99,6 +160,7 @@
     }
 
     async function login() {
+        error = success = ''
         const response = await fetch('/login', {
             method: 'POST',
             body: JSON.stringify(model),
@@ -127,7 +189,7 @@
         sessionStorage.clear()
         localStorage.clear()
         document.cookie = "token=; max-age=0; path=/"
-        authenticated = enroll = false
+        authenticated = enroll = verified = false
         resources = []
         model = {username: '', password: '', extend: false}
         error = confirm = success = ''
@@ -186,7 +248,25 @@
                     <button onclick={signup}>Sign up</button>
                 </form>
                 <a href="#/" onclick={() => enroll = false}>Sign in</a> |
-                <a href="/forgot">Forgot password?</a>
+                <a href="#/" onclick={() => {enroll = false; reset = true}}>Forgot password?</a>
+            {:else if reset}
+                <hgroup>
+                    <h1>Reset password</h1>
+                    <h2>{verified ? 'Enter new password' : 'Enter email to continue'}</h2>
+                </hgroup>
+                <span style="color: red">{error}</span>
+                <form>
+                    {#if verified}
+                        <label>Password<input type="password" bind:value={model.password}></label>
+                        <label>Confirm Password<input type="password" bind:value={confirm}></label>
+                        <button onclick={replace}>Reset</button>
+                    {:else}
+                        <label>Email<input type="text" bind:value={model.username}></label>
+                        <button onclick={forgot}>Continue</button>
+                    {/if}
+                </form>
+                <a href="#/" onclick={() => reset = false}>Sign in</a> |
+                <a href="#/" onclick={() => {reset = false; enroll = true}}>Sign up</a>
             {:else}
                 <hgroup>
                     <h1>Sign in</h1>
@@ -201,7 +281,7 @@
                     <button onclick={login}>Login</button>
                 </form>
                 <a href="#/" onclick={() => enroll = true}>Sign up</a> |
-                <a href="/forgot">Forgot password?</a>
+                <a href="#/" onclick={() => reset = true}>Forgot password?</a>
             {/if}
         </fieldset>
     {/if}

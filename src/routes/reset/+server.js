@@ -6,14 +6,14 @@ import {claims} from "$lib/server/common.js";
 export async function POST(event) {
     const data = await event.request.json()
     let user
-    if (data.nonce) {
-        user = await prisma.temp.findUnique({
+    if (data.key) {
+        user = await prisma.holding_area.findUnique({
             where: {
-                nonce: data.nonce
+                key: data.key
             }
         })
         if (!user) {
-            throw error(400, 'Invalid request')
+            error(400, 'Invalid request')
         }
     } else {
         user = await prisma.users.findUnique({
@@ -31,15 +31,15 @@ export async function POST(event) {
             password: await bcrypt.hash(data.password, 10)
         },
         where: {
-            id: user.id ? user.id : user.userId
+            username: user.username
         }
     })
-    if (data.nonce) {
-        await prisma.temp.deleteMany({
+    if (data.key) {
+        await prisma.holding_area.deleteMany({
             where: {
                 username: user.username
             }
         })
     }
-    return json({message: user.id ? 'Password reset successfully.' : 'Password reset.\nLogin to continue.'})
+    return json({message: 'Password reset.'})
 }
