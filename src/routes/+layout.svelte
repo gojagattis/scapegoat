@@ -70,7 +70,7 @@
             const claims = (JSON.parse(atob(jwt.split('.')[1])));
             if (claims.exp > now) {
                 authenticated = true
-                privileges((await query(`/users/${claims.sub}?select=roles!@(permissions@resource@action)`)).json.roles,
+                privileges((await query(`/users/${claims.sub}?select=id,roles!@(permissions@resource@action)`)).json.roles,
                   localStorage.getItem('dependents'))
             } // TODO else
         } else {

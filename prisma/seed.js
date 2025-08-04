@@ -2,7 +2,7 @@ import {PrismaClient} from "@prisma/client";
 import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient()
-const exclude = ['litestream_lock', 'litestream_seq']
+const exclude = ['litestream_lock', 'litestream_seq', 'holding_area']
 
 async function main() {
     const users = await prisma.users.findMany({})

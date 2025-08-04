@@ -285,7 +285,7 @@
                 }
                 if ((schemas[v].find(s => s.type === resource)).isList) {
                     connect[k] = {};
-                    if (Array.isArray(model[k])) {
+                    if (master[v] && Array.isArray(model[k])) {
                         master[v].forEach(m => connect[k][m.id] = !!model[k].find(s => s.id === m.id));
                     } else {
                         connect[k] = {
