@@ -39,7 +39,7 @@ if [ ! -d "prisma/migrations" ] ; then
   echo "VITE_EXTENDED_SESSION=\"1y\"" >> .env
   echo "" >> .env
 
-  if ! grep -Fxq '/prisma/migrations' package.json; then
+  if ! grep -Fxq '/prisma/migrations' .gitignore; then
     sed -i '/^.env$/d' .gitignore
     echo "server.log" >> .gitignore
     echo "/prisma/dev.db*" >> .gitignore
