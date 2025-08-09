@@ -2,11 +2,17 @@
 
 ignore=(litestream_lock litestream_seq holding_area)
 
-if [ ! -d "prisma" ] ; then
+if [ ! -d "prisma/migrations" ] ; then
+  mv prisma orm
   npm install prisma @prisma/client bcrypt jsonwebtoken accesscontrol winston dayjs nodemailer node-cache pluralize
   npx prisma init --datasource-provider sqlite
+  cp -f orm/* prisma
+  rm -rf orm
 
-  sed -i '/.*devDependencies.*/i \\t"prisma": {\n\t\t"seed": "node prisma/seed.js"\n\t},' package.json
+  if [ ! grep -Fxq package.json "\"prisma\": {" ]; then
+    sed -i '/.*devDependencies.*/i \\t"prisma": {\n\t\t"seed": "node prisma/seed.js"\n\t},' package.json
+  fi
+
   npx prisma migrate dev --name=" "
 
   models=$(awk -v FS="(model|{)" '{print $2}' prisma/schema.prisma)
